@@ -1,0 +1,110 @@
+---
+title: "La prévision de court terme au Trésor"
+subtitle: "Cas d'étude : l'industrie manufacturière"
+author:
+- name: Louise Phung
+  affiliation: (DG Trésor, SPMAE/PREV/PREV3)
+date: "03/01/2022"
+output:
+  html_document:
+    rmdformats::robobook:
+      self_contained: no
+      thumbnails: no
+      lightbox: no
+      gallery: no
+      highlight: tango
+  word_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+rm(list = ls())
+ENCODING_TYPE <- "utf-8"
+```
+
+```{r libraries, include=FALSE, warning=FALSE}
+
+```
+
+```{r functions_loading, include=FALSE}
+source("./code/data_importator.R", encoding = ENCODING_TYPE)
+```
+
+# Présentation
+
+* L'objectif est de prévoir la production manufacturière au sens des comptes trimestriels de la comptabilité nationale. Pour cela, il faut se rapprocher au maximum de la méthodologie utilisée par l'Insee dans la production des comptes trimestriels.
+* L'Insee utilise principalement l'indice de production industrielle (IPI) pour estimer la production et la valeur ajoutée de l'industrie manufacturière dans les comptes trimestriels.
+
+L’indice de la production industrielle (IPI) est l’indicateur utilisé par l’Insee pour estimer la production manufacturière dans les comptes nationaux trimestriels (CNT). L’évolution de la production manufacturière dans les comptes nationaux peut toutefois diverger de celle de l’IPI car l’Insee procède à un retraitement qui comprend trois étapes principales : nouvelle dessaisonalisation à partir des données brutes de l’IPI, repondération et étalonnage-calage. **4 méthodes sont utilisées jusqu’à présent par la DG Trésor pour répliquer ce retraitement. Un « nouveau retraitement » est proposé, qui apparaît plus précis et plus robuste.**
+
+# Faits stylisés de la production industrielle dans les comptes trimestriels
+
+
+
+# L'indice de production industrielle (IPI)
+
+L'indice de production industrielle (IPI) est créé à partir des enquêtes mensuelles de branche (EMB) qui sont différentes des enquêtes de conjoncture qui permettent la création des climats des affaires. Les EMB posent des questions sur XXXX.
+
+L'IPI du mois M est disponible environ 40 jours après la fin du mois M. Il est publié au niveau A10, A17 et A38 de la nomenclature agrégée associée à la NAF rév. 2 (nomenclature de classification des secteurs d'activité économique) avec en plus la subdivision du secteur des matériels de transport (C4) entre automobile (CL1) et autres matériels de transports (principalement l'aéronautique, CL2). Un détail beaucoup plus fin est aussi disponible sur la [base de données de l'Insee](https://www.insee.fr/fr/statistiques/series/108695026?INDICATEUR=2765760&NATURE=2224016), avec plus de 300 séries brutes et cvs-cjo.
+
+
+* La méthodologie de l'Insee est disponible sur [le site de l'Insee](https://www.insee.fr/fr/metadonnees/source/indicateur/p1646/documentation-methodologique) et sur le [serveur S:/](S:\SPMAE\PREV\Prev3\_Fichiers_Prev3\Prod_manuf\02-IPI\00-Fiche-méthodo).
+
+
+
+
+L’IPI n’entre pas stricto sensu dans les comptes trimestriels et fait au préalable l’objet d’un retraitement, si bien que l’évolution de l’IPI peut différer, parfois sensiblement, de celle de la production au sens des comptes nationaux.
+Méthodologie : Il n’existe pas de mesure infra-annuelle directe de la production si bien que les comptes nationaux trimestriels doivent procéder à un retraitement de l’IPI, qui est, lui, disponible mensuellement, afin d’estimer une production trimestrielle. Ce processus de retraitement inclut notamment des étalonnages-calages de l’IPI sur la production des comptes nationaux annuels ce qui permet de prendre en compte :
+-	la corrélation parfois imparfaite entre l’indicateur mensuel (l’IPI) et le compte annuel pour un secteur donné,
+la structure sectorielle de la production manufacturière alors que l’IPI est agrégé selon le poids des secteurs dans la valeur ajoutée.
+
+Période : 1990-2017
+Nomenclature : F48
+1/ Constitution d’un IPI brut au niveau F48 (soit 20 « secteurs » cf p 66 méthodo des comptes)
+2/ Dessaisonalisation des IPI bruts (méthode X-12) sous SAS
+3/ Étalonnage-calage des IPI dessaisonalisés en volume (à prix courants)
+4/ Repondération aux poids production puis chainage
+5/ repondération qui aboutit au niveau A17
+6/ repondération qui aboutit au CZ
+
+
+
+L’IPI ne permet pas de mesurer parfaitement la production manufacturière qui est extraite des comptes d’entreprises. Ces écarts, qui ne peuvent être estimés qu’au niveau annuel (puisque les comptes d’entreprises ne comportent pas d’information infra-annuelle), peuvent être plus ou moins marqués selon l’année considérée et selon les secteurs. Par exemple, les évolutions annuelles de l’IPI sont très corrélées avec celles des comptes annuels dans le secteur de la métallurgie alors que ce n’est pas le cas dans la pharmacie
+
+La relation entre l’IPI et la production des comptes peut être très distendue et cela peut tenir à :
+-	un taux de couverture trop faible de l’IPI (c’est surtout le cas lorsque le secteur est structurellement composé de nombreuses entreprises de moins de 20-30 salariés, donc est très « dispersé »), rendant non représentatif l’échantillon d’entreprises interrogées. Cela peut expliquer l’écart entre un IPI sectoriel et la production du secteur considéré ;
+-	une agrégation de l’IPI par les poids des secteurs dans la valeur ajoutée, alors que la production manufacturière trimestrielle est implicitement repondérée à partir des poids des secteurs dans la production ;
+-	une différence méthodologique entre les méthodes de correction des variations saisonnières et des jours ouvrés (CVS-CJO) utilisées pour les séries d’IPI et celles de production.
+
+En outre, à la DG Trésor, plusieurs éléments ne permettent de s’approcher que partiellement de la méthode utilisée par l’Insee sans pouvoir l’égaler stricto sensu :
+-	les paramètres des méthodes de CVS-CJO sont souvent discrétionnaires (en particulier en ce qui concerne la fenêtre d’estimation) et sont donc en cela imparfaitement reproductibles ;
+-	l’estimation de la relation entre IPI et production est faite par l’Insee à un niveau très fin de désagrégation (parfois inférieur au niveau F48) et mobilise des données non publiques et non disponibles à la DG Trésor.
+
+
+# Reproduire la méthode de l'Insee
+
+* Enjeux sur les données
+
+Les données de comptabilité nationale sont disponibles :
+- en A17 : dans les comptes trimestriels,
+- en A38 : dans les comptes annuels de l'année N-1 (publiés en mai de l'année suivante, N),
+- en A138 : dans les comptes annuels de l'année N-2 (publiés en mai deux ans après, à l'année N).
+
+=> Question : à quel niveau réaliser l'agrégation et le traitement de l'IPI ?
+
+
+# Proposition d'une autre méthode
+
+Quel est l'intérêt de retraiter l'IPI pour qu'il corresponde au mieux à la production industrielle dans les comptes trimestriels alors que les données sur le passé sont parfois fortement révisées (car l'Insee reçoit des informations en retard, apporte des corrections, etc. Et recale sur les comptes annuels ? CHECK) et corresponde donc par définition mieux aux comptes trimestriels que les données que l'on reçoit et qui sont de moins bonne qualité, pour ensuite utiliser un acquis = méthode de prévision grossière ?
+Autrement dit, pourquoi améliorer la qualité de l'IPI sur le passé alors que la qualité des données récentes sera par construction moindre - alors que ça risque de fausser les prévisions ? En plus, le RMSE *out-of-sample* est par construction lui aussi biaisé car sur l'estimation de l'échantillon sur le passé (par exemple sur 2016-2019), on utilise déjà un IPI de meilleur qualité.
+=> besoin de reconstituer une série en temps réel
+
+
+
+```{r cars}
+summary(cars)
+```
+
