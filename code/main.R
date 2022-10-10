@@ -27,9 +27,8 @@ if (ONLY_UPDATE_REALTIME_IPI_DATA) {
 } else {
   realtime_ipi <- construct_realtime_ipi_from_scratch(files_list = IPI_DATA_FILES,
                                                       file_type2files_list = IPI_FILES_TYPES,
-                                                      number_revision = 1,
-                                                      data_correction = "CJO-CVS",
-                                                      keep_historical_data = FALSE)
+                                                      number_previous_values = 24,
+                                                      data_correction = "CJO-CVS")
 }
 
 #
@@ -50,7 +49,9 @@ ipi_data_cz <- ipi_data %>%
 
 realtime_ipi_cz <- realtime_ipi %>%
   dplyr::filter(dimension == "CZ") %>%
-  dplyr::mutate(dimension = "realtime_ipi")
+  dplyr::mutate(dimension = "realtime_ipi") %>%
+  dplyr::select(date, dimension, t) %>%
+  dplyr::rename(value = t)
 
 compare_ipi <- realtime_ipi_cz %>%
   dplyr::bind_rows(ipi_data_cz) %>%
@@ -60,7 +61,23 @@ compare_ipi <- realtime_ipi_cz %>%
   ungroup()
 
 my_plot <- ggplot(compare_ipi) +
-  aes(x = date, y = evol, color = dimension) +
+  aes(x = date, y = value, color = dimension) +
   geom_line()
 
 ggplotly(my_plot)
+
+# calcul des révisions
+
+test <- compare_ipi %>%
+  dplyr::filter(date >= "2013-01-01") %>%
+  dplyr::select(-evol) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value) %>%
+  dplyr::mutate(diff = realtime_ipi - ipi_from_insee_plateform) %>%
+  dplyr::mutate(diff_sup = case_when(
+    diff > 0 ~ 1,
+    TRUE ~ 0
+  ))
+
+test %>% dplyr::summarise(somme_ecart = mean(diff, na.rm = TRUE),
+                          part_superieur = mean(diff_sup, na.rm = TRUE))
