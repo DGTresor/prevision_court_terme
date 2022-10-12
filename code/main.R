@@ -8,10 +8,10 @@ library(stringr)
 library(dplyr)
 library(ggplot2)
 library(plotly)
-source("./code/realtime_ipi/loaders_utils.R", encoding = "utf-8")
+source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8")
 
 # constants to define --------------------------------------------------------------------------------------------------
-ONLY_UPDATE_REALTIME_IPI_DATA <- FALSE
+ONLY_UPDATE_NONREVISED_IPI_DATA <- FALSE
 
 # preparation of lists -------------------------------------------------------------------------------------------------
 IPI_DATA_FILES <- get_ipi_data_files(IPI_DATA_FOLDER)
@@ -20,21 +20,19 @@ IPI_FILES_TYPES <- list("sectors_in_line_one_label_loader" = c("200901", "200903
                         "sectors_in_line_two_labels_loader" = stringr::str_subset(names(IPI_DATA_FILES), "(^2009(?!(01)|(03)).*)|(^2010(?!(11)|(12)).*)"))
 
 
-# 1. load realtime ipi -------------------------------------------------------------------------------------------------
+# 1. load nonrevised ipi -------------------------------------------------------------------------------------------------
 
-if (ONLY_UPDATE_REALTIME_IPI_DATA) {
-  realtime_ipi <- update_realtime_ipi()
+if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
+  # nonrevised_ipi <- update_nonrevised_ipi()
+  nonrevised_ipi <- load("./data/nonrevised_ipi_2022-08-01.RData")
 } else {
-  realtime_ipi <- construct_realtime_ipi_from_scratch(files_list = IPI_DATA_FILES,
+  nonrevised_ipi <- construct_nonrevised_ipi_from_scratch(files_list = IPI_DATA_FILES,
                                                       file_type2files_list = IPI_FILES_TYPES,
                                                       number_previous_values = 24,
                                                       data_correction = "CJO-CVS")
 }
 
-#
-# test_path <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Prod_manuf/02-IPI/mail_reaction_ipi/02-Envoi_Insee/2020/series_longues_ipi_20202.xls"
-#
-# test <- generic_loader(test_path)
+#save(nonrevised_ipi, file = paste0("./data/", "nonrevised_ipi_", max(unique(nonrevised_ipi[["date"]])), ".RData"))
 
 # comparing data -------------------------------------------------------------------------------------------------------
 source("./code/data_importator.R", encoding = "utf-8")
@@ -47,13 +45,13 @@ ipi_data_cz <- ipi_data %>%
   dplyr::filter(dimension == "CZ") %>%
   dplyr::mutate(dimension = "ipi_from_insee_plateform")
 
-realtime_ipi_cz <- realtime_ipi %>%
+nonrevised_ipi_cz <- nonrevised_ipi %>%
   dplyr::filter(dimension == "CZ") %>%
-  dplyr::mutate(dimension = "realtime_ipi") %>%
+  dplyr::mutate(dimension = "nonrevised_ipi") %>%
   dplyr::select(date, dimension, t) %>%
   dplyr::rename(value = t)
 
-compare_ipi <- realtime_ipi_cz %>%
+compare_ipi <- nonrevised_ipi_cz %>%
   dplyr::bind_rows(ipi_data_cz) %>%
   dplyr::arrange(date) %>%
   dplyr::group_by(dimension) %>%
@@ -73,7 +71,7 @@ test <- compare_ipi %>%
   dplyr::select(-evol) %>%
   tidyr::pivot_wider(names_from = dimension,
                      values_from = value) %>%
-  dplyr::mutate(diff = realtime_ipi - ipi_from_insee_plateform) %>%
+  dplyr::mutate(diff = nonrevised_ipi - ipi_from_insee_plateform) %>%
   dplyr::mutate(diff_sup = case_when(
     diff > 0 ~ 1,
     TRUE ~ 0

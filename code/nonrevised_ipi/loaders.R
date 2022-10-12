@@ -1,4 +1,4 @@
-# Title     : loaders for realtime ipi
+# Title     : loaders for nonrevised ipi
 # Created by: lphung
 # Created on: 12/09/2022
 
@@ -8,7 +8,7 @@ library(stringr)
 library(dplyr)
 library(tidyr)
 library(lubridate)
-source("./code/realtime_ipi/loader_fundamentals.R", encoding = "utf-8")
+source("./code/loader_fundamentals.R", encoding = "utf-8")
 
 # loaders --------------------------------------------------------------------------------------------------------------
 ## Note: the loaders are made to be independent so if another format of excel files appear, such create a new loader
