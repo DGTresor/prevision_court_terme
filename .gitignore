@@ -7,3 +7,5 @@ references_retraitement_IPI/
 input/
 output/
 data/
+*.docx
+*.html
