@@ -6,6 +6,8 @@ author:
   affiliation: (DG Trésor, SPMAE/PREV/PREV3)
 date: "03/01/2022"
 output:
+  word_document:
+    toc: yes
   html_document:
     rmdformats::robobook:
       self_contained: no
@@ -13,8 +15,6 @@ output:
       lightbox: no
       gallery: no
       highlight: tango
-  word_document:
-    toc: yes
   pdf_document:
     toc: yes
 ---
@@ -30,7 +30,6 @@ ENCODING_TYPE <- "utf-8"
 ```
 
 ```{r functions_loading, include=FALSE}
-source("./code/data_importator.R", encoding = ENCODING_TYPE)
 ```
 
 # Présentation
@@ -40,7 +39,12 @@ source("./code/data_importator.R", encoding = ENCODING_TYPE)
 
 L’indice de la production industrielle (IPI) est l’indicateur utilisé par l’Insee pour estimer la production manufacturière dans les comptes nationaux trimestriels (CNT). L’évolution de la production manufacturière dans les comptes nationaux peut toutefois diverger de celle de l’IPI car l’Insee procède à un retraitement qui comprend trois étapes principales : nouvelle dessaisonalisation à partir des données brutes de l’IPI, repondération et étalonnage-calage. **4 méthodes sont utilisées jusqu’à présent par la DG Trésor pour répliquer ce retraitement. Un « nouveau retraitement » est proposé, qui apparaît plus précis et plus robuste.**
 
-# Faits stylisés de la production industrielle dans les comptes trimestriels
+# Production industrielle dans la comptabilité nationale et les comptes trimestriels
+
+-> données nécessaires pour faire prévision
+
+
+## Faits stylisés de la production industrielle dans les comptes trimestriels
 
 
 
@@ -102,9 +106,8 @@ Quel est l'intérêt de retraiter l'IPI pour qu'il corresponde au mieux à la pr
 Autrement dit, pourquoi améliorer la qualité de l'IPI sur le passé alors que la qualité des données récentes sera par construction moindre - alors que ça risque de fausser les prévisions ? En plus, le RMSE *out-of-sample* est par construction lui aussi biaisé car sur l'estimation de l'échantillon sur le passé (par exemple sur 2016-2019), on utilise déjà un IPI de meilleur qualité.
 => besoin de reconstituer une série en temps réel
 
+# Notes
 
+## Trésor Eco n°151
 
-```{r cars}
-summary(cars)
-```
-
+Période d'estimation des modèles : peut commencer dans les années 2000 (ou mettre une indicatrice pour changement structurel) car changement de relation entre les enquêtes de conjoncture et la production manufacturière (CNAT) et l'IPI dans les années 2000 ; relation entre la production manufacturière (CNAT) et l'IPI change aussi dans les années 2000.

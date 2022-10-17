@@ -1,0 +1,270 @@
+---
+title: "IPI et production industrielle"
+author:
+- name: Louise Phung
+affiliation: (DG Trésor, SPMAE/PREV/PREV3)
+date: "17/10/2022"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+rm(list = ls())
+ENCODING_TYPE <- "utf-8"
+```
+
+```{r libraries, include=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(tseries)
+```
+
+```{r parameters, include = FALSE}
+update_geom_defaults("line", list(size = 1.1))  # define the default design for the geom elements. Here: the size of the lines in the graphs
+```
+
+```{r functions_loading, include=FALSE}
+
+source("./data_importator.R", encoding = "utf-8")
+source("./nonrevised_production/loaders.R", encoding = "utf-8", chdir = TRUE)
+# chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
+
+```
+
+```{r data_loading, include=FALSE}
+load("../data/nonrevised_ipi_2022-08-01.RData")
+load("../data/nonrevised_production_2019-04-01.RData")
+
+revised_ipi <- load_data_from_insee(dimensions_to_load = IPI_SECTORS_NAF2,
+                                    dimensions_label_list = SECTORS_LABEL_LIST)
+revised_production <- csv_production_loader(file_path = "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014/19T2PE/cprvolch.csv",
+                                            folder_name = "19T2PE")
+```
+
+On s'intéresse à la prévision de la production industrielle dans la comptabilité nationale trimestrielle. L'indicateur principal permettant de construire la production industrielle est *l'indice de production industrielle* (IPI). On veut donc utiliser l'IPI pour prédire la production industrielle.
+
+Pour cela, on va s'intéresser respectivement aux séries temporelles de la production industrielle et de l'IPI.
+
+## Analyse rapide des tendances
+
+* Pour l'instant, on n'a que les données jusqu'à 2019.
+
+Les données de la comptabilité nationale trimestrielle depuis les années 1980 mettent en évidence une production manufacturière en hausse. La production manufacturière croît fortement du milieu des années 90 jusqu'en 2001. Entre 2001 et 2003, elle baisse, avant de croître de nouveau, mais à un rythme plus modéré.
+
+La Grande Récession met brutalement fin à cette tendance haussière et entraîne une baisse significative de la production au premier semestre 2009, à un niveau proche de ses niveaux de la fin des années 90. Le rebond partiel de la production est stoppé par une nouvelle baisse en 2011, suite à la crise des dettes souveraines en Europe.
+
+De 2003 à 2019, la production manufacturière renout avec un sentier de croissance positif.
+
+```{r plot_manufacturing_production, echo = FALSE, fig.height=15, fig.width=25}
+ggplot(revised_production %>% dplyr::filter(dimension %in% c("P1E_DIM", "B1_DIM"))) +
+  aes(x = date, y = value, color = dimension) +
+  geom_line() +
+  scale_color_discrete(labels = c("P1E_DIM" = "Production dans l'industrie manufacturière", "B1_DIM" = "Valeur ajoutée dans l'industrie manufacturière")) +
+  scale_y_continuous(name = "Volume aux prix chaînés") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 35),
+        legend.key.size = unit(2, 'cm'),
+        axis.text = element_text(size = 40),
+        axis.title = element_text(size = 40))
+```
+
+
+* option : faire un graphique en base 100 à partir de la moyenne des années 2011 (début des données non-révisées)
+
+```{r manufacturing_production_average_growth, echo = FALSE}
+production_growth <- revised_production %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::mutate(growth = value / dplyr::lag(value, n = 1) - 1) %>%
+  dplyr::ungroup()
+
+average_production_growth <- production_growth %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::filter(date >= lubridate::ymd("2013-01-01") & lubridate::year(date) < 2020) %>%
+  dplyr::summarise(average = mean(growth), .groups = "drop")
+
+manufacturing_average_production_growth_rate <- paste0(round(average_production_growth$average[average_production_growth$dimension == "P1E_DIM"] * 100, digits = 2), "%")
+manufacturing_average_value_added_growth_rate <- paste0(round(average_production_growth$average[average_production_growth$dimension == "B1_DIM"] * 100, digits = 2), "%")
+```
+
+Le taux de croissance moyen sur la période 2013-2019 est de `r manufacturing_average_production_growth_rate` pour la production manufacturière et de `r manufacturing_average_value_added_growth_rate` pour la valeur ajoutée de l'industrie manufacturière.
+
+* Des tendances similaires s'observent pour l'IPI.
+
+```{r plot_ipi, echo = FALSE}
+ggplot(revised_ipi %>% filter(dimension == "CZ")) +
+  aes(x = date, y = value, color = dimension) +
+  geom_line() +
+  scale_y_continuous(name = "IPI") +
+  theme_bw()
+```
+
+## Notions de révision
+
+L'enjeu des révisions est crucial pour la prévision car pour entraîner le modèle et calculer ses performances, on a besoin d'avoir les données auxquelles il avait réellement accès quand il faisait sa prévision ; autrement dit, on doit recréer les conditions dans lesquelles le modèle était réellement dans le passé afin de connaître la "vraie prédiction" qu'il aurait faite compte-tenu des informations qu'il avait à ce moment-là.
+
+Par exemple, si l'on souhaite prédire le 3ème trimestre 2019 avec les données de l'IPI jusqu'à septembre 2019, alors on ne peut pas simplement fournir au modèle les données d'IPI que nous avons jusqu'à septembre 2019 puisqu'elles incorporent maintenant de multiples révisions sur le passé. Il faut fournir à ce modèle les données qu'il avait réellement en octobre 2019 et qui contenait la première version de l'IPI de septembre 2019.
+
+Pour cela, nous avons reconstitué une série contenant les premières estimations de l'IPI depuis 2009 jusqu'à maintenant. Nous avons fait de même pour la production industrielle dans les comptes trimestriels; nous avons reconstitué une série contenant la première estimation (PE) des comptes trimestriels de 2011 à 2019 pour l'instant.
+
+ * CHECK étendre plage de données pour production
+
+
+```{r compare_revision_ipi, echo = FALSE, fig.height=15, fig.width=25}
+
+revised_ipi_cz <- revised_ipi %>%
+  dplyr::select(-label) %>%
+  dplyr::filter(dimension == "CZ") %>%
+  dplyr::mutate(dimension = "revised_ipi")
+
+nonrevised_ipi_cz <- nonrevised_ipi %>%
+  dplyr::filter(dimension == "CZ") %>%
+  dplyr::mutate(dimension = "nonrevised_ipi") %>%
+  dplyr::select(date, dimension, t) %>%
+  dplyr::rename(value = t)
+
+compare_ipi <- nonrevised_ipi_cz %>%
+  dplyr::bind_rows(revised_ipi_cz) %>%
+  dplyr::arrange(date) %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::mutate(evol = (value / dplyr::lag(value)) - 1) %>%
+  ungroup()
+
+ggplot(compare_ipi %>% dplyr::filter(lubridate::year(date) >= 2009)) +
+  aes(x = date, y = value, color = dimension) +
+  geom_line() +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 35),
+        legend.key.size = unit(2, 'cm'),
+        axis.text = element_text(size = 40),
+        axis.title = element_text(size = 40))
+
+```
+
+On observe bien le changement de base opéré en 2013.
+
+```{r calculation_revision_ipi, echo = FALSE}
+
+revision_bias <- compare_ipi %>%
+  dplyr::filter(date >= "2013-01-01" & lubridate::year(date) <= 2019) %>%
+  dplyr::select(-evol) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value) %>%
+  dplyr::mutate(diff = nonrevised_ipi - revised_ipi) %>%
+  dplyr::mutate(diff_sup = case_when(
+    diff > 0 ~ 1,
+    TRUE ~ 0
+  ))
+
+revision_bias_summary <- revision_bias %>% dplyr::summarise(somme_ecart = mean(diff, na.rm = TRUE),
+                                                            part_superieur = mean(diff_sup, na.rm = TRUE))
+
+ecart_moyen <- paste0(round(revision_bias_summary$somme_ecart, digits = 1), "pt")
+part_superieur <- paste0(round(revision_bias_summary$part_superieur * 100, digits = 0), "%")
+```
+
+Sur la période 2013-2019, pour l'industrie manufacturière, l'IPI non-révisé est en moyenne `r ecart_moyen` supérieur à l'IPI révisé. De plus, il est supérieur à l'IPI révisé dans `r part_superieur` des cas.
+
+
+## Analyse des séries temporelles
+### La production manufacturière
+
+Puisque nous n'avons l'IPI non-révisé qu'à partir de 2011, nous allons nous intéresser à la production industrielle de 2011 à 2019, en utilisant les données non-révisées (la PE) que nous allons prédire.
+
+Les données non révisées de la production commencent au 1er trimestre 2011 donc on aura la variation trimestrielle qu'à partir du 2ème trimestre 2011 (c'est aussi pratique car pour la production révisée, le 1er trimestre 2011 semblait être un point aberrant).
+
+L'IPI ayant vocation à informer que l'évolution de la production industrielle, et non son niveau, on s'intéresse au taux de croissance de la production industrielle.
+
+
+```{r plot_manufacturing_production_growth, echo = FALSE, fig.height=15, fig.width=25}
+nonrevised_production_growth <- nonrevised_production %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::mutate(growth = t / dplyr::lag(t, n = 1) - 1) %>%
+  dplyr::ungroup()
+
+nonrevised_manufacturing_growth <- nonrevised_production_growth %>% dplyr::filter(dimension %in% c("P1E_DIM") & date > lubridate::ymd("2011-01-01") & lubridate::year(date) <= 2019)
+
+ggplot(nonrevised_manufacturing_growth) +
+  aes(x = date, y = growth) +
+  geom_line() +
+  scale_y_continuous(name = "Taux de croissance de la production manufacturière") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 35),
+        legend.key.size = unit(2, 'cm'),
+        axis.text = element_text(size = 40),
+        axis.title = element_text(size = 40))
+```
+
+#### Etude de la stationnarité de la série
+
+* structure de la série temporelle
+
+```{r nonrevised_production_autocorrelation, echo = TRUE}
+# Partial Autocorrelation Function
+pacf(x = nonrevised_manufacturing_growth$growth, lag.max = 8)
+
+# # AIC criterion
+# stats::AIC(object = nonrevised_manufacturing_growth$growth)
+# TODO : => need to check if the model is AR(p) or MA(q) or ARMA(p,q) by creating the models, estimating them and testing them
+# => CHECK "Forecasting" book for that
+
+```
+
+
+
+
+
+```{r nonrevised_production_stationary_test, echo = TRUE}
+# Augmented Dickey-Fuller Test
+tseries::adf.test(x = nonrevised_manufacturing_growth$growth)
+## todo: why cannot we decide if there is a constant or not?
+
+
+# Phillips-Perron Test
+tseries::pp.test(x = nonrevised_manufacturing_growth$growth)
+tseries::pp.test(x = nonrevised_manufacturing_growth$growth, lshort = FALSE)
+
+# KPSS Test
+tseries::kpss.test(x = nonrevised_manufacturing_growth$growth)
+tseries::kpss.test(x = nonrevised_manufacturing_growth$growth, lshort = FALSE)
+
+```
+
+Le test de Phillips-Perron indique qu'on rejette l'hypothèse de non-stationnarité (pour les lags 3 et 9) et le KPSS test indique qu'on ne peut pas rejetter l'hypothèse de stationnarité (pour les lags 3 et 9), ce qui semble indiquer que le taux de croissance de la production manufacturière est stationnaire sur la période 2011-2019.
+
+Le fait que le ADF test échoue à rejetter l'hypothèse de non-stationarité suggère que la série est autocorrélée et/ou hétéroskédastique. Sachant que le PACF ne met pas en lumière d'autocorrélation évidente, on peut penser que la série est hétéroskédastique.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### L'indice de production industrielle (IPI) dans l'industrie manufacturière (CZ)
+
+### Différentes méthodes de trimestrialisation de l'IPI et corrélation avec les comptes trimestriels
+
+* CHECK méthodo comptes trim
+* CHECK méthodo IPI pour propriétés de l'indice

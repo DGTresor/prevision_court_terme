@@ -54,48 +54,6 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
 
 # save(nonrevised_production, file = paste0("./data/", "nonrevised_production_", max(unique(nonrevised_production[["date"]])), ".RData"))
 
-# comparing data -------------------------------------------------------------------------------------------------------
-source("./code/data_importator.R", encoding = "utf-8")
-
-ipi_data <- load_data_from_insee(dimensions_to_load = IPI_SECTORS_NAF2,
-                                 dimensions_label_list = SECTORS_LABEL_LIST)
-
-ipi_data_cz <- ipi_data %>%
-  dplyr::select(-label) %>%
-  dplyr::filter(dimension == "CZ") %>%
-  dplyr::mutate(dimension = "ipi_from_insee_plateform")
-
-nonrevised_ipi_cz <- nonrevised_ipi %>%
-  dplyr::filter(dimension == "CZ") %>%
-  dplyr::mutate(dimension = "nonrevised_ipi") %>%
-  dplyr::select(date, dimension, t) %>%
-  dplyr::rename(value = t)
-
-compare_ipi <- nonrevised_ipi_cz %>%
-  dplyr::bind_rows(ipi_data_cz) %>%
-  dplyr::arrange(date) %>%
-  dplyr::group_by(dimension) %>%
-  dplyr::mutate(evol = (value / dplyr::lag(value)) - 1) %>%
-  ungroup()
-
-my_plot <- ggplot(compare_ipi) +
-  aes(x = date, y = value, color = dimension) +
-  geom_line()
-
-ggplotly(my_plot)
-
-# calcul des révisions
-
-test <- compare_ipi %>%
-  dplyr::filter(date >= "2013-01-01") %>%
-  dplyr::select(-evol) %>%
-  tidyr::pivot_wider(names_from = dimension,
-                     values_from = value) %>%
-  dplyr::mutate(diff = nonrevised_ipi - ipi_from_insee_plateform) %>%
-  dplyr::mutate(diff_sup = case_when(
-    diff > 0 ~ 1,
-    TRUE ~ 0
-  ))
-
-test %>% dplyr::summarise(somme_ecart = mean(diff, na.rm = TRUE),
-                          part_superieur = mean(diff_sup, na.rm = TRUE))
+# 3. create the dataframe for the previsions ---------------------------------------------------------------------------
+# TODO: to continue here => need to create 3 dataframes for the 3 models (when we have m_1, m_2 and m_3)
+# TODO: check functions in the "regular prevision" code for the transformations
