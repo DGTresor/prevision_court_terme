@@ -11,7 +11,7 @@ library(lubridate)
 source("./code/loader_fundamentals.R", encoding = "utf-8")
 
 # loaders --------------------------------------------------------------------------------------------------------------
-## Note: the loaders are made to be independent so if another format of excel files appear, such create a new loader
+## Note: the loaders are made to be independent so if another format of excel files appears, just create a new loader
 
 sectors_in_line_one_label_loader <- function(file_path, data_correction = "CJO-CVS") {
   # get the name of the sheet we want to use according to the data_correction we selected

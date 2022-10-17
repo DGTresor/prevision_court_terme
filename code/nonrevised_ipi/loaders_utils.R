@@ -11,36 +11,15 @@ source("./code/nonrevised_ipi/loaders.R", encoding = "utf-8")
 # folders --------------------------------------------------------------------------------------------------------------
 IPI_DATA_FOLDER <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Prod_manuf/02-IPI/mail_reaction_ipi/02-Envoi_Insee"
 
-# structural functions -------------------------------------------------------------------------------------------------
-get_column_names <- function(number_previous_values) {
-  column_names <- c("date", "dimension", "t")
-  if (number_previous_values > 0) {
-    column_names <- c(column_names, paste0("t_", seq(1:number_previous_values)))
-  }
-  return(column_names)
-}
-
-get_empty_dataframe <- function(number_previous_values = 0) {
-  # create the dataframe
-  empty_dataframe <- data.frame(matrix(nrow = 0, ncol = number_previous_values + 3))
-  # name the columns
-  colnames(empty_dataframe) <- get_column_names(number_previous_values = number_previous_values)
-  # impose the columns' type
-  empty_dataframe <- empty_dataframe %>%
-    dplyr::mutate(date = as.Date(date),
-                  dimension = as.character(dimension)) %>%
-    dplyr::mutate(dplyr::across(dplyr::starts_with("t"), as.double))
-  return(empty_dataframe)
-}
-
 # functions ------------------------------------------------------------------------------------------------------------
 construct_nonrevised_ipi_from_scratch <- function(files_list, file_type2files_list, number_previous_values = 0, data_correction = "CJO-CVS") {
   df <- get_empty_dataframe(number_previous_values)
   # column_to_join_by <- get_column_names_to_join_by()
 
+  loader_provider <- get_loader_provider(data_source = "ipi")
   for (file_name in names(files_list)) {
     print(paste("On lit le fichier :", file_name))
-    loader <- get_loader(file_name, file_type2files_list)
+    loader <- get_loader(file_name, file_type2files_list, loader_provider)
     new_data <- loader(files_list[[file_name]], data_correction = "CJO-CVS")
     df <- construct_nonrevised_ipi_series(df, new_data, number_previous_values = number_previous_values)
     rm(new_data)
@@ -50,22 +29,14 @@ construct_nonrevised_ipi_from_scratch <- function(files_list, file_type2files_li
   return(df)
 }
 
-get_loader <- function(file_name, file_type2files_list) {
-  for (file_type in names(file_type2files_list)) {
-    if (file_name %in% file_type2files_list[[file_type]]) {
-      return(get_loader_for(file_type))
-    }
-  }
-  return(generic_loader)
-}
-
-get_loader_for <- function(file_type) {
+get_loader_for_ipi <- function(file_type) {
   if (file_type == "sectors_in_line_one_label_loader") {
     return(sectors_in_line_one_label_loader)
   } else if (file_type == "sectors_in_line_two_labels_loader") {
     return(sectors_in_line_two_labels_loader)
   } else {
-    stop(paste0("No loader found for: ", file_type))
+    return(generic_loader) #todo: check if good pattern; here the generic_loader is the default
+    # stop(paste0("No loader found for the file_type: ", file_type))
   }
 }
 
