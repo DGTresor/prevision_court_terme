@@ -8,8 +8,10 @@ library(stringr)
 library(dplyr)
 library(ggplot2)
 library(plotly)
-source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8")
-source("./code/nonrevised_production/loaders_utils.R", encoding = "utf-8")
+source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("./code/nonrevised_production/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+# chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
+
 
 # constants to define --------------------------------------------------------------------------------------------------
 ONLY_UPDATE_NONREVISED_IPI_DATA <- TRUE

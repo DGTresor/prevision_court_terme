@@ -9,7 +9,8 @@ library(stringr)
 library(dplyr)
 library(tidyr)
 library(lubridate)
-source("./code/loader_fundamentals.R", encoding = "utf-8")
+source("../loader_fundamentals.R", encoding = "utf-8", chdir = TRUE)
+# chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # constants ------------------------------------------------------------------------------------------------------------
 # /!\ Note: pre_2010 classification applies to 2010 quarters and before; for 2010, and before, the classification is different. So, we decide not to use data before 2011.

@@ -6,7 +6,8 @@
 library(stringr)
 library(dplyr)
 library(tidyr)
-source("./code/nonrevised_ipi/loaders.R", encoding = "utf-8")
+source("./loaders.R", encoding = "utf-8", chdir = TRUE)
+# chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # folders --------------------------------------------------------------------------------------------------------------
 IPI_DATA_FOLDER <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Prod_manuf/02-IPI/mail_reaction_ipi/02-Envoi_Insee"

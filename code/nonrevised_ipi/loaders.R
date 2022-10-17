@@ -8,7 +8,8 @@ library(stringr)
 library(dplyr)
 library(tidyr)
 library(lubridate)
-source("./code/loader_fundamentals.R", encoding = "utf-8")
+source("../loader_fundamentals.R", encoding = "utf-8")
+# chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # loaders --------------------------------------------------------------------------------------------------------------
 ## Note: the loaders are made to be independent so if another format of excel files appears, just create a new loader

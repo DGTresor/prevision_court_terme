@@ -6,7 +6,8 @@
 library(stringr)
 library(dplyr)
 library(tidyr)
-source("./code/nonrevised_production/loaders.R", encoding = "utf-8")
+source("./loaders.R", encoding = "utf-8", chdir = TRUE)
+# chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # folders --------------------------------------------------------------------------------------------------------------
 PRODUCTION_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim"
