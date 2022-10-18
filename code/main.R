@@ -20,11 +20,12 @@ ONLY_UPDATE_NONREVISED_PRODUCTION_DATA <- TRUE
 
 # preparation of lists -------------------------------------------------------------------------------------------------
 IPI_DATA_FILES <- get_ipi_data_files(IPI_DATA_FOLDER)
+# TODO: check where to put that -> in a README.md // Note: convention de nommage des fichiers d'IPI: la date du nom de fichier doit contenir la dernière date pour laquelle nous avons l'IPI (et non la date de publication)
 PRODUCTION_DATA_FOLDERS <- get_production_data_files(PRODUCTION_DATA_FOLDER, estimation_type = "PE")
 # we keep only the folders containing the 1st estimation of the quarterly accounts (PE)
 
-IPI_FILES_TYPES <- list("sectors_in_line_one_label_loader" = c("200901", "200903"),
-                        "sectors_in_line_two_labels_loader" = stringr::str_subset(names(IPI_DATA_FILES), "(^2009(?!(01)|(03)).*)|(^2010(?!(11)|(12)).*)"))
+IPI_FILES_TYPES <- list("sectors_in_line_one_label_loader" = c("200901"),
+                        "sectors_in_line_two_labels_loader" = stringr::str_subset(names(IPI_DATA_FILES), "(^2009(?!(01)).*)|(^2010(?!(11)|(12)).*)"))
 
 PRODUCTION_FILES_TYPES <- list("pre_19T2RD_csv" = stringr::str_subset(names(PRODUCTION_DATA_FOLDERS), "^1(?!(9T2RD)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*"), # we want
                                "post_19T2RD_xls" = "",
@@ -45,11 +46,12 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
 
 # 2. load nonrevised production ----------------------------------------------------------------------------------------
 if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
+  # nonrevised_production <- update_nonrevised_production()
   load("./data/nonrevised_production_2019-04-01.RData")
 } else {
   nonrevised_production <- construct_nonrevised_production_from_scratch(files_list = PRODUCTION_DATA_FOLDERS,
-                                                                      file_type2files_list = PRODUCTION_FILES_TYPES,
-                                                                      number_previous_values = 24)
+                                                                        file_type2files_list = PRODUCTION_FILES_TYPES,
+                                                                        number_previous_values = 24)
 }
 
 # save(nonrevised_production, file = paste0("./data/", "nonrevised_production_", max(unique(nonrevised_production[["date"]])), ".RData"))

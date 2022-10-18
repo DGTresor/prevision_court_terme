@@ -35,9 +35,10 @@ get_loader_for_ipi <- function(file_type) {
     return(sectors_in_line_one_label_loader)
   } else if (file_type == "sectors_in_line_two_labels_loader") {
     return(sectors_in_line_two_labels_loader)
-  } else {
+  } else if (file_type == "generic") {
     return(generic_loader) #todo: check if good pattern; here the generic_loader is the default
-    # stop(paste0("No loader found for the file_type: ", file_type))
+  } else {
+    stop(paste0("No loader found for the file_type: ", file_type))
   }
 }
 

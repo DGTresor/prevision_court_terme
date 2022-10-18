@@ -34,10 +34,10 @@ check_data_correction <- function(data_correction) {
   }
 }
 
-get_loader_provider <- function(data_source){
-  if(data_source == "ipi"){
+get_loader_provider <- function(data_source) {
+  if (data_source == "ipi") {
     return(get_loader_for_ipi)
-  } else if (data_source == "production"){
+  } else if (data_source == "production") {
     return(get_loader_for_production)
   } else {
     stop(paste0("No loader provider found for the data_source: ", data_source))
@@ -50,4 +50,5 @@ get_loader <- function(file_name, file_type2files_list, loader_provider) {
       return(loader_provider(file_type = file_type))
     }
   }
+  return(loader_provider(file_type = "generic"))
 }
