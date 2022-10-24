@@ -26,10 +26,8 @@ construct_nonrevised_production_from_scratch <- function(files_list, file_type2f
   for (folder_name in names(files_list)) {
     print(paste("On s'occupe du dossier :", folder_name))
     loader <- get_loader(folder_name, file_type2files_list, loader_provider)
-    # file_path <- get_file_name_for(loader_name = as.character(substitute(loader)), # Note: it is the way to recover the name of the loader function
-    #                                folder_path = files_list[[folder_name]])
-    file_path <- file.path(files_list[[folder_name]], "cprvolch")
-    new_data <- loader(file_path, folder_name)
+    # file_path <- file.path(files_list[[folder_name]], "cprvolch")
+    new_data <- loader(files_list[[folder_name]], folder_name)
     df <- construct_nonrevised_series(df, new_data, date_granularity = "quarter", number_previous_values = number_previous_values)
     rm(new_data)
   }
@@ -40,11 +38,11 @@ construct_nonrevised_production_from_scratch <- function(files_list, file_type2f
 
 get_loader_for_production <- function(file_type) {
   if (file_type == "pre_19T2RD_csv") {
-    return(csv_production_loader)
+    return(csv_pre_19T2RD_production_loader)
   } else if (file_type == "post_19T2RD_xls") {
     return(xls_production_loader)
-  } else if (file_type == "post_19T2RD_rdata") {
-    return(rdata_production_loader)
+  } else if (file_type == "post_19T2RD_csv") {
+    return(csv_post_19T2RD_production_loader)
   } else {
     stop(paste0("No loader found for the file_type: ", file_type))
   }
@@ -81,8 +79,8 @@ get_production_data_files <- function(production_folder, estimation_type) {
   ## end we exclude data for the year 2010 for which data follows another classification
 
   #todo: to delete when other loaders created
-  production_data_folders <- stringr::str_subset(string = production_data_folders,
-                                                 pattern = ".*/1(?!(9T2RD)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*")
+  # production_data_folders <- stringr::str_subset(string = production_data_folders,
+  #                                                pattern = ".*/((1.*)|(20.*)|(21.*)|(22T1PE)|(22T1RD))")
 
   # give an harmonised name to each file according to the last date of the ipi data
   names(production_data_folders) <- stringr::str_extract(production_data_folders, pattern = "(?<=/)[:digit:]{2}T[:digit:](PE|RD)$")

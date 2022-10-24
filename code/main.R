@@ -44,14 +44,15 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
 # 2. load nonrevised production ----------------------------------------------------------------------------------------
 if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
   # nonrevised_production <- update_nonrevised_production()
-  load("./data/nonrevised_production_2019-04-01.RData")
+  load("./data/nonrevised_production_2022-04-01PE.RData")
 } else {
   # preparation of the list
   PRODUCTION_DATA_FOLDERS <- get_production_data_files(PRODUCTION_DATA_FOLDER, estimation_type = "PE")
   # we keep only the folders containing the 1st estimation of the quarterly accounts (PE)
-  PRODUCTION_FILES_TYPES <- list("pre_19T2RD_csv" = stringr::str_subset(names(PRODUCTION_DATA_FOLDERS), "^1(?!(9T2RD)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*"), # we want
-                                 "post_19T2RD_xls" = "",
-                                 "post_19T2RD_rdata" = "")
+  ## Note : we do not want to use the .RData file (available from 19T4) because they are ts() series not in dataframe format and we would need to reconstruct everything
+  PRODUCTION_FILES_TYPES <- list("pre_19T2RD_csv" = stringr::str_subset(names(PRODUCTION_DATA_FOLDERS), "(^1(?!(9T2RD)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*)"), # we want
+                                 "post_19T2RD_xls" = stringr::str_subset(names(PRODUCTION_DATA_FOLDERS), "^((19T2RD)|(19T3PE)|(19T3RD)|(19T4PE)|(19T4RD))|(^20.*)|(^21.*)|^((22T1PE)|(22T1RD))"),
+                                 "post_19T2RD_csv" = stringr::str_subset(names(PRODUCTION_DATA_FOLDERS), "(^2(?!(0.*)|(1.*)|(2T1PE)|(2T1RD)).*)"))
 
   # preparation of the matrix
   nonrevised_production <- construct_nonrevised_production_from_scratch(files_list = PRODUCTION_DATA_FOLDERS,
@@ -68,7 +69,7 @@ if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
 # TODO: create a function for that (across columns) in data_preparator.R
 # load revised data to calculate the effects of changing bases
 load("./data/revised_ipi_2022-08-01.RData")
-load("./data/revised_production_19T2PE.RData")
+load("./data/revised_production_2022-04-01PE.RData")
 
 # get the needed sector and, compare revised and nonrevised data
 compare_ipi <- merge_nonrevised_and_revised_data(revised_data = revised_ipi, nonrevised_data = nonrevised_ipi,
@@ -113,7 +114,7 @@ production_for_prev <- nonrevised_production_cz %>%
   dplyr::mutate(dimension = "production") %>%
   get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "production") %>%
   convert_to_wide_format() %>%
-  dplyr::mutate(AR1_production = dplyr::lag(production))
+  dplyr::mutate(lag1_production = dplyr::lag(production))
 
 data_for_prev <- ipi_for_prev %>%
   dplyr::full_join(production_for_prev, by = "date") %>%
@@ -122,29 +123,27 @@ data_for_prev <- ipi_for_prev %>%
 
 # cleaning data_for_prev
 data_for_prev <- data_for_prev %>%
-  dplyr::filter(date <= ymd("2019-01-01")) %>%
   dplyr::arrange(date)
 
 # 3.3. create the dataframes to test different models
 # NOTE: we test the models only for IPI with the second month of the quarter
 # TODO: to continue here => need to create 3 dataframes for the 3 models (when we have m_1, m_2 and m_3)
 
-data_for_model_level_sum <- data_for_prev %>%
-  dplyr::mutate(lag_acquis_ipi_m2 = lag(acquis_ipi_m2)) %>%
-  dplyr::select(production, acquis_ipi_m2,lag_acquis_ipi_m2, AR1_production)
+# data_for_model_level_sum <- data_for_prev %>%
+#   dplyr::mutate(lag_acquis_ipi_m2 = lag(acquis_ipi_m2)) %>%
+#   dplyr::select(production, acquis_ipi_m2,lag_acquis_ipi_m2, lag1_production)
 #
-data_for_model_level_split <- data_for_prev %>%
-  dplyr::mutate(lag_ipi_m1 = lag(ipi_m1),
-                lag_ipi_m2 = lag(ipi_m2)) %>%
-  dplyr::select(production, ipi_m1, ipi_m2, lag_ipi_m1, lag_ipi_m2, AR1_production)
-# %>%
-#   stats::ts(start = c(2011, 2), frequency = 4)
+# data_for_model_level_split <- data_for_prev %>%
+#   dplyr::mutate(lag_ipi_m1 = lag(ipi_m1),
+#                 lag_ipi_m2 = lag(ipi_m2)) %>%
+#   dplyr::select(production, ipi_m1, ipi_m2, lag_ipi_m1, lag_ipi_m2, lag1_production)
+#
 
 data_for_model_var_sum <- data_for_prev %>%
-  dplyr::filter(date <= ymd("2019-01-01")) %>%
+  # dplyr::filter(date <= ymd("2022-04-01")) %>%
   dplyr::arrange(date) %>%
   dplyr::select(var1_production, var1_acquis_m2) %>%
-  dplyr::mutate(AR1_var1_production = lag(var1_production))
+  dplyr::mutate(lag1_var1_production = lag(var1_production))
 # %>% # TODO: maybe add the lag of the var1_acquis_m3 to get the variation of the full quarter before
 #   stats::ts(start = c(2011, 2), frequency = 4)
 
@@ -159,7 +158,7 @@ predicted_values <- c()
 expected_values <- c()
 for (i in start_from:(nrow(data_for_model_var_sum)-1)){
   train_set <- data_for_model_var_sum[2:i,]
-  model <- lm(var1_production ~ var1_acquis_m2 + AR1_var1_production, data = train_set)
+  model <- lm(var1_production ~ var1_acquis_m2 + lag1_var1_production, data = train_set)
   # print(summary(model))
   predicted_values <- c(predicted_values, predict(model, data_for_model_var_sum[i+1,])[[1]])
   expected_values <- c(expected_values, data_for_prev$var1_production[i+1])
@@ -173,7 +172,7 @@ mae_m1 <- Metrics::mae(expected_values, predicted_values)
 # expected_values <- c()
 # for (i in start_from:(nrow(data_for_model_level_split)-1)){
 #   train_set <- data_for_model_level_split[2:i,]
-#   model <- lm(production ~ ipi_m1 + ipi_m2 + lag_ipi_m1 + lag_ipi_m2 + AR1_production, data = train_set)
+#   model <- lm(production ~ ipi_m1 + ipi_m2 + lag_ipi_m1 + lag_ipi_m2 + lag1_production, data = train_set)
 #   # print(summary(model))
 #   in_level_current_predicted_production <- predict(model, data_for_model_level_split[i+1,])[[1]]
 #   in_level_previous_production <- data_for_prev$production[i]
@@ -191,7 +190,7 @@ mae_m1 <- Metrics::mae(expected_values, predicted_values)
 # expected_values <- c()
 # for (i in start_from:(nrow(data_for_model_level_sum)-1)){
 #   train_set <- data_for_model_level_sum[2:i,]
-#   model <- lm(production ~ acquis_ipi_m2 + lag_acquis_ipi_m2 + AR1_production, data = train_set)
+#   model <- lm(production ~ acquis_ipi_m2 + lag_acquis_ipi_m2 + lag1_production, data = train_set)
 #   # print(summary(model))
 #   in_level_current_predicted_production <- predict(model, data_for_model_level_sum[i+1,])[[1]]
 #   in_level_previous_production <- data_for_prev$production[i]

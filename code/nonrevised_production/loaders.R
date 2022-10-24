@@ -58,11 +58,11 @@ DIMENSIONS_TO_KEEP <- list("post_19T2RD" = c("production_BE" = "TD.P1E_DI_7CH",
 # loaders --------------------------------------------------------------------------------------------------------------
 ## Note: the loaders are made to be independent so if another format of excel or csv files appears, just create a new loader
 
-csv_production_loader <- function(file_path, folder_name) {
+csv_pre_19T2RD_production_loader <- function(file_path, folder_name) {
   # ensure that the file_path is complete
-  ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.csv") or only the type is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch")
-  if(!stringr::str_detect(file_path, ".csv$")){
-    file_path <- paste0(file_path, ".csv")
+  ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.csv") or only the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
+  if (!stringr::str_detect(file_path, ".csv$")) {
+    file_path <- file.path(file_path, "cprvolch.csv")
   }
   # load the file
   suppressWarnings(                                                                              # suppress warnings to prevent warning of first column's name missing
@@ -71,6 +71,37 @@ csv_production_loader <- function(file_path, folder_name) {
   dimensions_list <- return_dimensions_list_for(folder_name)
   # clean the data to fit a proper syntax
   clean_data <- data_cleaner_for_csv(new_data, dimensions_list = dimensions_list)
+  return(clean_data)
+}
+
+xls_production_loader <- function(file_path, folder_name) {
+  # ensure that the file_path is complete
+  ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.xls") or the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
+  if (!stringr::str_detect(file_path, ".xls$")) {
+    file_path <- file.path(file_path, "cprvolch.xls")
+  }
+  # load the file
+  new_data <- readxl::read_xls(path = file_path, col_names = TRUE)
+  # get the dimensions' code according to the folder_name
+  dimensions_list <- return_dimensions_list_for(folder_name)
+  # clean the data to fit a proper syntax
+  clean_data <- data_cleaner_for_xls(new_data, dimensions_list = dimensions_list)
+  return(clean_data)
+}
+
+# TODO: check code duplication with xls_production_loader()
+csv_post_19T2RD_production_loader <- function(file_path, folder_name) {
+  # ensure that the file_path is complete
+  ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.csv") or the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
+  if (!stringr::str_detect(file_path, ".csv$")) {
+    file_path <- file.path(file_path, "cprvolch.csv")
+  }
+  # load the file
+  suppressMessages(new_data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
+  # get the dimensions' code according to the folder_name
+  dimensions_list <- return_dimensions_list_for(folder_name)
+  # clean the data to fit a proper syntax
+  clean_data <- data_cleaner_for_xls(new_data, dimensions_list = dimensions_list)
   return(clean_data)
 }
 
@@ -95,12 +126,22 @@ return_dimensions_list_for <- function(folder_name) {
   }
 }
 
+transform_quarterly_string_dates_to_date <- function(date_column) {
+  # the date values only contain the year and the quarter and sometimes additional characters so (1) we need to only extract the numbers and (2) add "01" for the day
+  date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\1", date_column), # extract the year
+                                                      "-",
+                                                      as.numeric(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\3", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
+                                                      "-01"))
+  return(date_column_in_date_format)
+}
+
 # data cleaners for specific format ------------------------------------------------------------------------------------
+# TODO : try to reduce code duplication between the two functions
 data_cleaner_for_csv <- function(data, dimensions_list, list_of_dimensions = DIMENSIONS_TO_KEEP) {
   # get the proper list of dimensions
   list_of_dimensions <- list_of_dimensions[[dimensions_list]]
   # rename the first column
-  ## Note: in this format, the first column contains national accounts' indicators (notably, value added and production by sectors)
+  ## Note: in this format, the first column contains national accounts' indicator codes (notably, value added and production by sectors)
   clean_data <- data
   colnames(clean_data)[1] <- "dimension"
   # keep only the dimensions we need
@@ -128,11 +169,39 @@ data_cleaner_for_csv <- function(data, dimensions_list, list_of_dimensions = DIM
   return(clean_data)
 }
 
-transform_quarterly_string_dates_to_date <- function(date_column) {
-  # the date values only contain the year and the quarter and sometimes additional characters so (1) we need to only extract the numbers and (2) add "01" for the day
-  date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "([0-9]{4})Q([1-9])", "\\1", date_column), # extract the year
-                                                      "-",
-                                                      as.numeric(sub(pattern = "([0-9]{4})Q([1-9])", "\\2", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
-                                                      "-01"))
-  return(date_column_in_date_format)
+
+data_cleaner_for_xls <- function(data, dimensions_list, list_of_dimensions = DIMENSIONS_TO_KEEP) {
+  # get the proper list of dimensions
+  list_of_dimensions <- list_of_dimensions[[dimensions_list]]
+  # rename the first column
+  ## Note: in this format, the first column contains national accounts' indicator codes (notably, value added and production by sectors)
+  clean_data <- data
+  colnames(clean_data)[1] <- "dimension"
+  # remove the second column that contains the indicator labels
+  clean_data <- clean_data %>%
+    dplyr::select(-INTIT)
+  # keep only the dimensions we need
+  clean_data <- clean_data %>%
+    dplyr::filter(dimension %in% list_of_dimensions)
+  # clean the dimension id
+  regex_pattern_1 <- "TD.(.*)(_7CH|7_CH)"                                  # use the regex pattern you need to clean the name of your dimensions, if it is not clean
+  clean_data <- clean_data %>%
+    dplyr::mutate(dimension = sub(pattern = regex_pattern_1, replacement = "\\1", x = clean_data$dimension)) # that means: take the 1st group, that is what we capture in the first brackets with the regex
+  regex_pattern_2 <- "(.*)_(A17)?(.*)"
+  clean_data <- clean_data %>%
+    dplyr::mutate(dimension = sub(pattern = regex_pattern_2, replacement = "\\1_\\3", x = clean_data$dimension)) # we want to exclude "A17" because it appears in some ID code and not in others.
+  # pivot the data
+  columns_to_pivot <- colnames(clean_data)[colnames(clean_data) != "dimension"]
+  clean_data <- clean_data %>%
+    tidyr::pivot_longer(cols = dplyr::all_of(columns_to_pivot),
+                        names_to = "date",
+                        values_to = "value")
+  # put the date in date format
+  clean_data <- clean_data %>%
+    dplyr::mutate(date = sub("A(.*)", "\\1", x = date)) %>%
+    dplyr::mutate(date = transform_quarterly_string_dates_to_date(date))
+  # reorganise the dataframe
+  clean_data <- clean_data %>%
+    dplyr::select(date, dimension, value)
+  return(clean_data)
 }
