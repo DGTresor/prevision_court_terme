@@ -42,28 +42,30 @@ source("./nonrevised_production/loaders.R", encoding = "utf-8", chdir = TRUE)
 
 ```{r data_loading, include=FALSE}
 load("../data/nonrevised_ipi_2022-08-01.RData")
-load("../data/nonrevised_production_2019-04-01.RData")
+load("../data/nonrevised_production_2022-04-01PE.RData")
+load("../data/revised_production_2022-04-01PE.RData")
 
 revised_ipi <- load_data_from_insee(dimensions_to_load = IPI_SECTORS_NAF2,
                                     dimensions_label_list = SECTORS_LABEL_LIST)
-revised_production <- csv_production_loader(file_path = "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014/19T2PE/cprvolch.csv",
-                                            folder_name = "19T2PE")
 ```
 
 On s'intéresse à la prévision de la production industrielle dans la comptabilité nationale trimestrielle. L'indicateur principal permettant de construire la production industrielle est *l'indice de production industrielle* (IPI). On veut donc utiliser l'IPI pour prédire la production industrielle.
 
 Pour cela, on va s'intéresser respectivement aux séries temporelles de la production industrielle et de l'IPI.
 
+## Notion de nowcasting
+
+* donner une définition
+* expliquer comment s'organise le dataframe -> les dates représentent les observations d'obtention des données
+
 ## Analyse rapide des tendances
 ### La production manufacturière
-
-* Pour l'instant, on n'a que les données jusqu'à 2019.
 
 Les données de la comptabilité nationale trimestrielle depuis les années 1980 mettent en évidence une production manufacturière en hausse. La production manufacturière croît fortement du milieu des années 90 jusqu'en 2001. Entre 2001 et 2003, elle baisse, avant de croître de nouveau, mais à un rythme plus modéré.
 
 La Grande Récession met brutalement fin à cette tendance haussière et entraîne une baisse significative de la production au premier semestre 2009, à un niveau proche de ses niveaux de la fin des années 90. Le rebond partiel de la production est stoppé par une nouvelle baisse en 2011, suite à la crise des dettes souveraines en Europe.
 
-De 2003 à 2019, la production manufacturière renoue avec un sentier de croissance positif.
+De 2003 à 2019, la production manufacturière renoue avec un sentier de croissance positif, jusqu'à la crise de la Covid-19.
 
 ```{r plot_manufacturing_production, echo = FALSE, fig.height=15, fig.width=25}
 ggplot(revised_production %>% dplyr::filter(dimension %in% c("P1E_DIM", "B1_DIM"))) +
@@ -118,11 +120,11 @@ L'enjeu des révisions est crucial pour la prévision car pour entraîner le mod
 
 Par exemple, si l'on souhaite prédire le 3ème trimestre 2019 avec les données de l'IPI jusqu'à septembre 2019, alors on ne peut pas simplement fournir au modèle les données d'IPI que nous avons jusqu'à septembre 2019 puisqu'elles incorporent maintenant de multiples révisions sur le passé. Il faut fournir à ce modèle les données qu'il avait réellement en octobre 2019 et qui contenait la première version de l'IPI de septembre 2019.
 
-Pour cela, nous avons reconstitué une série contenant les premières estimations de l'IPI depuis 2009 jusqu'à maintenant. Nous avons fait de même pour la production industrielle dans les comptes trimestriels; nous avons reconstitué une série contenant la première estimation (PE) des comptes trimestriels de 2011 à 2019 pour l'instant.
+Pour cela, nous avons reconstitué une série contenant les premières estimations de l'IPI depuis 2009 jusqu'à maintenant. Nous avons fait de même pour la production industrielle dans les comptes trimestriels; nous avons reconstitué une série contenant la première estimation (PE) des comptes trimestriels de 2011 jusqu'à la dernière PE disponible.
 
 ### La production manufacturière
 
-Sur la période 2011-2019, les données de comptabilité nationale ont subi deux changements de base :
+Sur la période 2011-2022, les données de comptabilité nationale ont subi deux changements de base :
 
 * de la PE du 1er trimestre 2011 aux RD du 4ème trimestre 2013 : les données sont en base 2005,
 * de la PE du 1er trimestre 2014 à la PE du 1er trimestre 2018 : elles sont en base 2010,
@@ -342,9 +344,9 @@ ggplot(compare_ipi_corrected) +
 
 ### La production manufacturière
 
-Puisque nous n'avons l'IPI non-révisé qu'à partir de 2011, nous allons nous intéresser à la production industrielle de 2011 à 2019, en utilisant les données non-révisées (la PE) que nous allons prédire.
+Nous allons nous intéresser à la production industrielle de 2011 à maintenant en utilisant les données non-révisées (la PE) que nous allons prédire.
 
-Les données non révisées de la production commencent au 1er trimestre 2011 donc on aura la variation trimestrielle qu'à partir du 2ème trimestre 2011 (c'est aussi pratique car pour la production révisée, le 1er trimestre 2011 semblait être un point aberrant).
+Les données non-révisées de la production commencent au 1er trimestre 2011 donc on aura la variation trimestrielle qu'à partir du 2ème trimestre 2011 (c'est aussi pratique car pour la production révisée, le 1er trimestre 2011 semblait être un point aberrant).
 
 L'IPI ayant vocation à informer que l'évolution de la production industrielle, et non son niveau, on s'intéresse donc aussi au taux de croissance de la production industrielle.
 
@@ -448,7 +450,7 @@ tseries::kpss.test(x = nonrevised_production_cz_corrected$evol, lshort = FALSE)
 
 ```
 
-Le test de Phillips-Perron indique qu'on rejette l'hypothèse de non-stationnarité (pour les lags 3 et 9) et le KPSS test indique qu'on ne peut pas rejeter l'hypothèse de stationnarité (pour les lags 3 et 9), ce qui semble indiquer que le taux de croissance de la production manufacturière est stationnaire sur la période 2011-2019.
+Le test de Phillips-Perron indique qu'on rejette l'hypothèse de non-stationnarité (pour les lags 3 et 9) et le KPSS test indique qu'on ne peut pas rejeter l'hypothèse de stationnarité (pour les lags 3 et 9), ce qui semble indiquer que le taux de croissance de la production manufacturière est stationnaire sur la période 2011-2022.
 
 Le fait que le ADF test échoue à rejeter l'hypothèse de non-stationnarité suggère que la série est autocorrélée et/ou hétéroscédastique. Sachant que le PACF ne met pas en lumière d'autocorrélation évidente, on peut penser que la série est hétéroscédastique.
 
@@ -469,25 +471,27 @@ Le fait que le ADF test échoue à rejeter l'hypothèse de non-stationnarité su
 # TODO : sum non-revised ipi by t + t_1 + t_2 -> what we will use for prediction
 # and try for m-1 t*3 et m-2 : t + t_1 * 2 (or (t + t_1)/2 * 3)
 
+date_max <- ymd("2022-04-01")
+
 transfo_nonrevised_ipi <- nonrevised_ipi_cz_corrected %>%
   dplyr::select(-evol) %>%
   month_to_quarter(transformation_type = "sum") %>%
   dplyr::mutate("nonrevised_qt_ipi_vt" = value / dplyr::lag(value, n = 1) - 1) %>%
-  dplyr::filter(date >= ymd("2011-04-01") & date <= ymd("2019-04-01")) %>%  # pour l'instant, nous n'avons les données de production que jusqu'au 2ème trimestre 2019 soit jusqu'en juin 2019
+  dplyr::filter(date >= ymd("2011-04-01") & date <= date_max) %>%
   dplyr::rename(nonrevised_qt_ipi = value) %>%
   dplyr::select(-dimension)
 
 transfo_revised_ipi <- revised_ipi_cz %>%
   month_to_quarter(transformation_type = "sum") %>%
   dplyr::mutate("revised_qt_ipi_vt" = value / dplyr::lag(value, n = 1) - 1) %>%
-  dplyr::filter(date >= ymd("2011-04-01") & date <= ymd("2019-04-01")) %>%  # pour l'instant, nous n'avons les données de production que jusqu'au 2ème trimestre 2019 soit jusqu'en juin 2019
+  dplyr::filter(date >= ymd("2011-04-01") & date <= date_max) %>%
   rename(revised_qt_ipi = value) %>%
   dplyr::select(-dimension)
 
 transfo_revised_production <- revised_production %>%
   dplyr::filter(dimension == "P1E_DIM") %>%
   dplyr::mutate("revised_production_vt" = value / dplyr::lag(value, n = 1) - 1) %>%
-  dplyr::filter(date >= ymd("2011-04-01") & date <= ymd("2019-04-01")) %>%  # pour l'instant, nous n'avons les données de production que jusqu'au 2ème trimestre 2019 soit jusqu'en juin 2019
+  dplyr::filter(date >= ymd("2011-04-01") & date <= date_max) %>%
   rename(revised_production = value) %>%
   dplyr::select(-dimension)
 
@@ -508,9 +512,7 @@ corrplot::corrplot.mixed(cor(comparing_ipi_production %>% select(-date), method 
 
 On trimestrialise l'IPI, i.e. on somme les trois IPI mensuels pour chaque trimestre, pour comparer son niveau et son évolution avec ceux de la production industrielle dans l'industrie manufacturière (qt_ipi pour *quarterly ipi*, i.e. pour l'IPI trimestriel).
 
-**ATTENTION ! Plus le cas depuis qu'on a fait les corrections des effets de changement de base !!** // La matrice des corrélations ci-dessus met bien en évidence l’illusion de performance de nos modèles de prévision qui prennent l’IPI révisé (i.e. la dernière série fournie par l’Insee) pour prédire la production industrielle révisée. Heureusement cette illusion semble moins dramatique quand on prend les coefficients de corrélations de Spearman, qui pourraient mieux fonctionner compte-tenu de la spécificité des séries en taux de croissance qui introduisent des non-linéarités. //
-
-On notera que les corrélations inscrites ici sont pour les IPI trimestrialisés complets (i.e. quand on a les trois mois d’IPI), donc les corrélations seront plus faibles quand on n’aura que le mois 1 ou mois 2 du trimestre, et encore plus faible au mois 0. ** Attention, les changements de base ne sont pas traités.**
+On notera que les corrélations inscrites ici sont pour les IPI trimestrialisés complets (i.e. quand on a les trois mois d’IPI), donc les corrélations seront plus faibles quand on n’aura que le mois 1 ou mois 2 du trimestre, et encore plus faible au mois 0.
 
 
 ```{r graph_correlations, echo = FALSE}
