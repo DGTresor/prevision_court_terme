@@ -22,7 +22,7 @@ construct_nonrevised_ipi_from_scratch <- function(files_list, file_type2files_li
     print(paste("On lit le fichier :", file_name))
     loader <- get_loader(file_name, file_type2files_list, loader_provider)
     new_data <- loader(files_list[[file_name]], data_correction = "CJO-CVS")
-    df <- construct_nonrevised_ipi_series(df, new_data, number_previous_values = number_previous_values)
+    df <- construct_nonrevised_series(df, new_data, date_granularity = "month", number_previous_values = number_previous_values)
     rm(new_data)
   }
   df <- df %>% dplyr::arrange(date)
@@ -42,26 +42,27 @@ get_loader_for_ipi <- function(file_type) {
   }
 }
 
-construct_nonrevised_ipi_series <- function(data, new_data, number_previous_values = 0) {
-  # keep only the number of previous values we want
-  data_to_bind <- new_data %>%
-    dplyr::filter(date >= max(date) - months(number_previous_values)) # if the number of previous values is 0, we only want the observations for the last date
-  # give a rank to the dates, from t (the latest date) to t_n (the n+1 latest date)
-  data_to_bind <- data_to_bind %>%
-    dplyr::mutate(date_rank = dplyr::dense_rank(desc(date)) - 1L) %>%
-    dplyr::mutate(date_rank = case_when(
-      date_rank == "0" ~ "t",
-      TRUE ~ paste0("t_", date_rank)
-    ))
-  # attribute as date the latest date that is also the date of the file, and pivot the data
-  last_date <- as.Date(max(unique(data_to_bind$date)))
-  data_to_bind <- data_to_bind %>%
-    dplyr::mutate(date = last_date) %>%
-    tidyr::pivot_wider(names_from = "date_rank")
-  # bind all data together
-  data <- dplyr::bind_rows(data, data_to_bind)
-  return(data)
-}
+# TODO: to delete because of code duplication
+# construct_nonrevised_ipi_series <- function(data, new_data, number_previous_values = 0) {
+#   # keep only the number of previous values we want
+#   data_to_bind <- new_data %>%
+#     dplyr::filter(date >= max(date) - months(number_previous_values)) # if the number of previous values is 0, we only want the observations for the last date
+#   # give a rank to the dates, from t (the latest date) to t_n (the n+1 latest date)
+#   data_to_bind <- data_to_bind %>%
+#     dplyr::mutate(date_rank = dplyr::dense_rank(desc(date)) - 1L) %>%
+#     dplyr::mutate(date_rank = case_when(
+#       date_rank == "0" ~ "t",
+#       TRUE ~ paste0("t_", date_rank)
+#     ))
+#   # attribute as date the latest date that is also the date of the file, and pivot the data
+#   last_date <- as.Date(max(unique(data_to_bind$date)))
+#   data_to_bind <- data_to_bind %>%
+#     dplyr::mutate(date = last_date) %>%
+#     tidyr::pivot_wider(names_from = "date_rank")
+#   # bind all data together
+#   data <- dplyr::bind_rows(data, data_to_bind)
+#   return(data)
+# }
 
 
 update_nonrevised_ipi <- function() {

@@ -52,3 +52,32 @@ get_loader <- function(file_name, file_type2files_list, loader_provider) {
   }
   return(loader_provider(file_type = "generic"))
 }
+
+
+construct_nonrevised_series <- function(data, new_data, date_granularity = "quarter", number_previous_values = 0) {
+  # keep only the number of previous values we want
+  if (date_granularity == "month") {
+    data_to_bind <- new_data %>%
+      dplyr::filter(date >= max(date) - months(number_previous_values)) # if the number of previous values is 0, we only want the observations for the last date
+  } else if (date_granularity == "quarter") {
+    data_to_bind <- new_data %>%
+      dplyr::filter(date >= max(date) - months(number_previous_values) * 3) # if the number of previous values is 0, we only want the observations for the last date
+  } else {
+    stop("Provide either \"month\" or \"quarter\" as date_granularity to the construct_nonrevised_production_series() function.")
+  }
+  # give a rank to the dates, from t (the latest date) to t_n (the n+1 latest date)
+  data_to_bind <- data_to_bind %>%
+    dplyr::mutate(date_rank = dplyr::dense_rank(desc(date)) - 1L) %>%
+    dplyr::mutate(date_rank = case_when(
+      date_rank == "0" ~ "t",
+      TRUE ~ paste0("t_", date_rank)
+    ))
+  # attribute as date the latest date that is also the date of the file, and pivot the data
+  last_date <- as.Date(max(unique(data_to_bind$date)))
+  data_to_bind <- data_to_bind %>%
+    dplyr::mutate(date = last_date) %>%
+    tidyr::pivot_wider(names_from = "date_rank")
+  # bind all data together
+  data <- dplyr::bind_rows(data, data_to_bind)
+  return(data)
+}

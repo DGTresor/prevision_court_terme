@@ -42,7 +42,7 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
 # save(nonrevised_ipi, file = paste0("./data/", "nonrevised_ipi_", max(unique(nonrevised_ipi[["date"]])), ".RData"))
 
 # 2. load nonrevised production ----------------------------------------------------------------------------------------
-if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
+if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
   # nonrevised_production <- update_nonrevised_production()
   load("./data/nonrevised_production_2019-04-01.RData")
 } else {
