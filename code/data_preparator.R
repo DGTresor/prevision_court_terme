@@ -2,30 +2,50 @@
 # Created by: lphung
 # Created on: 17/10/2022
 
+# libraries ------------------------------------------------------------------------------------------------------------
+library(dplyr)
+library(lubridate)
+library(stringr)
 
 
+# functions ------------------------------------------------------------------------------------------------------------
+
+merge_nonrevised_and_revised_data <- function(revised_data, nonrevised_data, dimension_to_keep, column_to_use_for_revised_data, column_to_use_for_nonrevised_data, data_label = "") {
+  col_revised <- enquo(column_to_use_for_revised_data)
+  col_nonrevised <- enquo(column_to_use_for_nonrevised_data)
+
+  selected_revised_data <- revised_data %>%
+    dplyr::select(date, dimension, !!col_revised) %>%
+    dplyr::filter(dimension == dimension_to_keep) %>%
+    dplyr::mutate(dimension = ifelse(data_label == "", "revised", paste0("revised_", data_label)))
+
+  selected_nonrevised_data <- nonrevised_data %>%
+    dplyr::select(date, dimension, !!col_nonrevised) %>%
+    dplyr::filter(dimension == dimension_to_keep) %>%
+    dplyr::mutate(dimension = ifelse(data_label == "", "nonrevised", paste0("nonrevised_", data_label))) %>%
+    dplyr::rename(!!col_revised := !!col_nonrevised)
+
+  merged_data <- selected_nonrevised_data %>%
+      dplyr::bind_rows(selected_revised_data)
+
+  return(merged_data)
+}
 
 
+get_changing_base_shift <- function(df_with_revised_and_nonrevised_data, start_period, end_period) {
+  dimensions <- unique(df_with_revised_and_nonrevised_data$dimension)
+  revised_label <- stringr::str_subset(dimensions, "^revised.*")
+  nonrevised_label <- stringr::str_subset(dimensions, "^nonrevised.*")
 
+  period_averages <- df_with_revised_and_nonrevised_data %>%
+    dplyr::filter(date >= lubridate::ymd(start_period) & date <= lubridate::ymd(end_period)) %>%
+    dplyr::group_by(dimension) %>%
+    dplyr::summarise(mean = mean(value, na.rm = TRUE), .groups = "drop")
 
+  changing_base_effect <- period_averages$mean[period_averages$dimension == revised_label] - period_averages$mean[period_averages$dimension == nonrevised_label]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  return(changing_base_effect)
+}
 
 
 
@@ -37,6 +57,16 @@
 ########################################################################################################################
 ################################## functions from other code ###########################################################
 
+# conversion -----------------------------------------------------------------------------------------------------------
+
+convert_to_wide_format <- function(long_format_data) {
+  wide_format <- long_format_data %>%
+    tidyr::pivot_wider(names_from = dimension,
+                       values_from = value)
+  return(wide_format)
+}
+
+# functions ------------------------------------------------------------------------------------------------------------
 
 month_to_quarter <- function(data, transformation_type) {
   # Mixing monthly and quarterly data is a bad idea => we transform all the dimensions to quarter

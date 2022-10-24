@@ -13,6 +13,9 @@ knit: (function(inputFile, encoding) {
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 rm(list = ls())
+if(getwd() != "C:/Users/lphung/Documents/TAFF/projets R/PROJETS_PREVISION/prevision_exploration_TEST/code"){
+   setwd("./code")
+}
 ENCODING_TYPE <- "utf-8"
 ```
 
@@ -177,31 +180,31 @@ On corrige l'effet du changement de base en prenant l'écart moyen entre la sér
 # TODO: either do average or changed of variation difference between two quarters
 
 average_production_between_bases <- compare_production %>%
-  dplyr::mutate(base = case_when(
-    lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ "base_2005",
-    lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ "base_2010", # attention: seulement la PE du T1 2018 est en base 2010
-    date > lubridate::ymd("2018-01-01") ~ "base_2014",
-    TRUE ~ NA_character_
-  )) %>%
-  dplyr::group_by(base, dimension) %>%
-  dplyr::summarise(mean = mean(value, na.rm = TRUE), .groups = "drop")
+dplyr::mutate(base = case_when(
+  lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ "base_2005",
+  lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ "base_2010", # attention: seulement la PE du T1 2018 est en base 2010
+  date > lubridate::ymd("2018-01-01") ~ "base_2014",
+  TRUE ~ NA_character_
+)) %>%
+dplyr::group_by(base, dimension) %>%
+dplyr::summarise(mean = mean(value, na.rm = TRUE), .groups = "drop")
 
 shift_base_2005 <- average_production_between_bases$mean[average_production_between_bases$dimension == "revised_production" & average_production_between_bases$base == "base_2005"] - average_production_between_bases$mean[average_production_between_bases$dimension == "nonrevised_production" & average_production_between_bases$base == "base_2005"]
 
 shift_base_2010 <- average_production_between_bases$mean[average_production_between_bases$dimension == "revised_production" & average_production_between_bases$base == "base_2010"] - average_production_between_bases$mean[average_production_between_bases$dimension == "nonrevised_production" & average_production_between_bases$base == "base_2010"]
 
 nonrevised_production_cz <- nonrevised_production_cz %>%
-  dplyr::mutate(corrected_value = case_when(
-    lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ value + shift_base_2005,
-    lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ value + shift_base_2010,
-    TRUE ~ value
-  ))
+dplyr::mutate(corrected_value = case_when(
+  lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ value + shift_base_2005,
+  lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ value + shift_base_2010,
+  TRUE ~ value
+))
 
 compare_production_corrected <- nonrevised_production_cz %>%
-  dplyr::select(date, dimension, corrected_value) %>%
-  dplyr::rename(value = corrected_value) %>%
-  dplyr::bind_rows(revised_production_cz) %>%
-  dplyr::filter(lubridate::year(date) >= 2011)
+dplyr::select(date, dimension, corrected_value) %>%
+dplyr::rename(value = corrected_value) %>%
+dplyr::bind_rows(revised_production_cz) %>%
+dplyr::filter(lubridate::year(date) >= 2011)
 
 ggplot(compare_production_corrected) +
   geom_line(mapping = aes(x = date, y = value, color = dimension)) +
@@ -337,8 +340,6 @@ ggplot(compare_ipi_corrected) +
 
 ## Analyse des séries temporelles
 
-***ATTENTION!! Il faut contrôler pour les changements de base***
-
 ### La production manufacturière
 
 Puisque nous n'avons l'IPI non-révisé qu'à partir de 2011, nous allons nous intéresser à la production industrielle de 2011 à 2019, en utilisant les données non-révisées (la PE) que nous allons prédire.
@@ -447,9 +448,9 @@ tseries::kpss.test(x = nonrevised_production_cz_corrected$evol, lshort = FALSE)
 
 ```
 
-Le test de Phillips-Perron indique qu'on rejette l'hypothèse de non-stationnarité (pour les lags 3 et 9) et le KPSS test indique qu'on ne peut pas rejetter l'hypothèse de stationnarité (pour les lags 3 et 9), ce qui semble indiquer que le taux de croissance de la production manufacturière est stationnaire sur la période 2011-2019.
+Le test de Phillips-Perron indique qu'on rejette l'hypothèse de non-stationnarité (pour les lags 3 et 9) et le KPSS test indique qu'on ne peut pas rejeter l'hypothèse de stationnarité (pour les lags 3 et 9), ce qui semble indiquer que le taux de croissance de la production manufacturière est stationnaire sur la période 2011-2019.
 
-Le fait que le ADF test échoue à rejetter l'hypothèse de non-stationarité suggère que la série est autocorrélée et/ou hétéroskédastique. Sachant que le PACF ne met pas en lumière d'autocorrélation évidente, on peut penser que la série est hétéroskédastique.
+Le fait que le ADF test échoue à rejeter l'hypothèse de non-stationnarité suggère que la série est autocorrélée et/ou hétéroscédastique. Sachant que le PACF ne met pas en lumière d'autocorrélation évidente, on peut penser que la série est hétéroscédastique.
 
 
 ### L'indice de production industrielle (IPI) dans l'industrie manufacturière (CZ)
@@ -482,8 +483,6 @@ transfo_revised_ipi <- revised_ipi_cz %>%
   dplyr::filter(date >= ymd("2011-04-01") & date <= ymd("2019-04-01")) %>%  # pour l'instant, nous n'avons les données de production que jusqu'au 2ème trimestre 2019 soit jusqu'en juin 2019
   rename(revised_qt_ipi = value) %>%
   dplyr::select(-dimension)
-
-# cacul + compliqué en vrai : glissement trimestriel du trimestre en cours par rapport au trimestre suivant avec acquis à chaque mois (même pas...)
 
 transfo_revised_production <- revised_production %>%
   dplyr::filter(dimension == "P1E_DIM") %>%
