@@ -32,6 +32,20 @@ ENCODING_TYPE <- "utf-8"
 ```{r functions_loading, include=FALSE}
 ```
 
+
+# NB
+
+-> Il faut séparer 2 choses :
+
+* la reproduction de la méthodologie des comptes trimestriels à partir de l'IPI -> pour maîtriser cette phase
+
+* la prévision de la production industrielle quand on n'a pas tous les poids d'IPI.
+    * Avant : on reproduisait la méthodologie de l'Insee en utilisant des acquis = une prévision stable
+    * L'objectif est de faire mieux que ça OU d'utiliser des acquis mais d'entraîer un modèle avec les données qu'il a effectivement au moment où on fait la prévision (i.e. que les données de mois 2)
+
+Commentaire perso : on pourrait potentiellement prévoir les points d'IPI manquants avec les enquêtes puis appliquer la moulinette de l'Insee
+
+
 # Présentation
 
 * L'objectif est de prévoir la production manufacturière au sens des comptes trimestriels de la comptabilité nationale. Pour cela, il faut se rapprocher au maximum de la méthodologie utilisée par l'Insee dans la production des comptes trimestriels.
@@ -87,6 +101,12 @@ En outre, à la DG Trésor, plusieurs éléments ne permettent de s’approcher 
 -	les paramètres des méthodes de CVS-CJO sont souvent discrétionnaires (en particulier en ce qui concerne la fenêtre d’estimation) et sont donc en cela imparfaitement reproductibles ;
 -	l’estimation de la relation entre IPI et production est faite par l’Insee à un niveau très fin de désagrégation (parfois inférieur au niveau F48) et mobilise des données non publiques et non disponibles à la DG Trésor.
 
+
+# Relation entre l'IPI et la production manufacturière dans les comptes trimestriels
+
+* Quand on remplace les poids de l'IPI par les poids de la production, on arrive à une variation trimestrielle plus éloignée qu'avec l'IPI original.
+
+![](`r file.path("../output/variation_trimestrielle_2022_ipi_ipi-repondere_production.png")`){width=650px}
 
 # Reproduire la méthode de l'Insee
 

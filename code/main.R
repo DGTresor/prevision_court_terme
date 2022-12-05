@@ -9,11 +9,15 @@ library(dplyr)
 library(lubridate)
 library(stats)
 library(forecast)
+library(ggplot2)
 source("./code/data_importator.R", encoding = "utf-8")
 source("./code/data_preparator.R", encoding = "utf-8")
 source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/nonrevised_production/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
+
+source("./code/scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")
+source("./code/scripts_from_prevision_production_manuf/data_transformation.R", encoding = "utf-8")
 
 
 # constants to define --------------------------------------------------------------------------------------------------
@@ -24,7 +28,7 @@ ONLY_UPDATE_NONREVISED_PRODUCTION_DATA <- TRUE
 # 1. load nonrevised ipi -------------------------------------------------------------------------------------------------
 if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
   # nonrevised_ipi <- update_nonrevised_ipi()
-  load("./data/nonrevised_ipi_2022-08-01.RData")
+  load("./data/nonrevised_ipi_2022-09-01.RData")
 } else {
   # preparation of the list
   IPI_DATA_FILES <- get_ipi_data_files(IPI_DATA_FOLDER)
@@ -44,7 +48,7 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
 # 2. load nonrevised production ----------------------------------------------------------------------------------------
 if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
   # nonrevised_production <- update_nonrevised_production()
-  load("./data/nonrevised_production_2022-04-01PE.RData")
+  load("./data/nonrevised_production_2022-07-01PE.RData")
 } else {
   # preparation of the list
   PRODUCTION_DATA_FOLDERS <- get_production_data_files(PRODUCTION_DATA_FOLDER, estimation_type = "PE")
@@ -118,7 +122,7 @@ production_for_prev <- nonrevised_production_cz %>%
 
 data_for_prev <- ipi_for_prev %>%
   dplyr::full_join(production_for_prev, by = "date") %>%
-  dplyr::filter(date >= lubridate::ymd("2011-04-01")) %>%
+  dplyr::filter(date >= lubridate::ymd("2011-01-01")) %>%
   dplyr::arrange(date)
 
 # cleaning data_for_prev
@@ -140,9 +144,9 @@ data_for_prev <- data_for_prev %>%
 #
 
 data_for_model_var_sum <- data_for_prev %>%
-  # dplyr::filter(date <= ymd("2022-04-01")) %>%
+  dplyr::filter(date <= ymd("2022-07-01")) %>%
   dplyr::arrange(date) %>%
-  dplyr::select(var1_production, var1_acquis_m2) %>%
+  dplyr::select(date, var1_production, var1_acquis_m2) %>%
   dplyr::mutate(lag1_var1_production = lag(var1_production))
 # %>% # TODO: maybe add the lag of the var1_acquis_m3 to get the variation of the full quarter before
 #   stats::ts(start = c(2011, 2), frequency = 4)
@@ -151,56 +155,77 @@ data_for_model_var_sum <- data_for_prev %>%
 #   dplyr::select(var1_production, var1_ipi_m1, var1_ipi_m2) %>%
 #   stats::ts(start = c(2011, 2), frequency = 4)
 
+
+# 3.4 add surveys data
+pmi_manuf <- load_pmi_data_from_excel(path_to_data = PATH_TO_PMI_DATA,
+                                      column_list = PMI_EXCEL_DIMENSIONS_TO_DATAFRAME_DIMENSIONS)
+survey_data <- pmi_manuf %>%
+  filter(dimension %in% c("pmi_climat", "pmi_production_passee"
+                          # , "pmi_new_commandes", "pmi_emploi"
+                          # , "pmi_delais_livraison", "pmi_stocks_achats"
+  ))
+
+transfo_survey_data <- survey_data %>%
+  # get_variation_for(variation_type = "difference", add_option = TRUE, nbr_lag = 1) %>%
+  # get_variation_for(variation_type = "difference", add_option = TRUE, nbr_lag = 3,
+  #                   dimensions_to_transform = c("pmi_climat", "pmi_production_passee")) %>%
+  month_to_quarter(transformation_type = "split") %>%
+  pivot_wider(names_from = dimension,
+              values_from = value) %>%
+  mutate(sum_climat = pmi_climat_m1 + pmi_climat_m2 + pmi_climat_m3,
+         sum_prod_passee = pmi_production_passee_m1 +
+           pmi_production_passee_m2 +
+           pmi_production_passee_m3) %>%
+  mutate(sum_climat_vt = sum_climat - lag(sum_climat),
+         sum_prod_passee_vt = sum_prod_passee - lag(sum_prod_passee),
+         sum_climat_ga = sum_climat - lag(sum_climat, n = 4),
+         sum_prod_passee_ga = sum_prod_passee - lag(sum_prod_passee, n = 4),
+         sum_climat_growthrate = sum_climat / lag(sum_climat) - 1,
+         sum_climat_growthrate4 = sum_climat / lag(sum_climat, n = 4) - 1) %>%
+  filter(date >= ymd("2011-01-01") & date <= ymd("2022-07-01"))
+
+data_merged <- data_for_model_var_sum %>%
+  full_join(transfo_survey_data, by = "date")
+
+#TODO : keep data for october 2022 (BCSE prod-passee of october => prod of septembre) and sum there
+
+# regressors <- convert_to_wide_format(transfo_ipi) %>%
+#   dplyr::left_join(convert_to_wide_format(transfo_survey_data), by = "date")
+#
+# forecasting_data <- convert_to_wide_format(transfo_cnat_prod_manuf) %>%
+#   dplyr::full_join(regressors, by = "date") %>%
+#   mutate(AR1 = lag(prod_manuf)) %>%
+#   filter(date > lubridate::ymd("2000-01-01")) %>%
+#   add_quarterly_dummy(dummy_name = "T1_2020", vector_of_dates = ymd(c("2020-01-01"))) %>%
+#   add_quarterly_dummy(dummy_name = "T2_2020", vector_of_dates = ymd(c("2020-04-01"))) %>%
+#   add_quarterly_dummy(dummy_name = "T3_2020", vector_of_dates = ymd(c("2020-07-01")))
+
+
 # 4. generate the models for second month of the quarter ---------------------------------------------------------------
+
+
+data_final <- data_merged %>%
+  filter(date <= ymd("2022-04-01"))
 
 start_from <- 18
 predicted_values <- c()
 expected_values <- c()
-for (i in start_from:(nrow(data_for_model_var_sum)-1)){
-  train_set <- data_for_model_var_sum[2:i,]
-  model <- lm(var1_production ~ var1_acquis_m2 + lag1_var1_production, data = train_set)
-  # print(summary(model))
-  predicted_values <- c(predicted_values, predict(model, data_for_model_var_sum[i+1,])[[1]])
-  expected_values <- c(expected_values, data_for_prev$var1_production[i+1])
+for (i in start_from:(nrow(data_final) - 1)) {
+  train_set <- data_final[3:i,]
+  # model <- lm(var1_production ~ var1_acquis_m2 , data = train_set) -> rmse = 0.009136706 period [2011-07-01;2019-10-01] // rmse = 0.02071128 period [2011-07-01;2022-04-01]
+  # model <- lm(var1_production ~ var1_acquis_m2 + sum_prod_passee_vt, data = train_set) -> rmse = 0.009019557 period [2011-07-01;2019-10-01]
+  # model <- lm(var1_production ~ var1_acquis_m2 + sum_prod_passee_ga, data = train_set) -> rmse = 0.009049178 period [2011-07-01;2019-10-01]
+  # model <- lm(var1_production ~ var1_acquis_m2 + sum_climat_vt, data = train_set) -> rmse = 0.008805136 period [2011-07-01;2019-10-01] // rmse = 0.01980073 period [2011-07-01;2022-04-01]
+  # model <- lm(var1_production ~ var1_acquis_m2 + sum_climat_ga, data = train_set) -> rmse = 0.008830841 period [2011-07-01;2019-10-01]
+  # model <- lm(var1_production ~ var1_acquis_m2 + sum_climat_growthrate, data = train_set) -> rmse = 0.008777745 period [2011-07-01;2019-10-01] // rmse = 0.01927782 period [2011-07-01;2022-04-01]
+  # model <- lm(var1_production ~ var1_acquis_m2 + sum_climat_growthrate4, data = train_set) -> rmse = 0.008764019 period [2011-07-01;2019-10-01] // rmse = 0.02173239 period [2011-07-01;2022-04-01]
+  model <- lm(var1_production ~ var1_acquis_m2 + sum_climat_growthrate, data = train_set)
+  predicted_values <- c(predicted_values, predict(model, data_final[i + 1,])[[1]])
+  expected_values <- c(expected_values, data_for_prev$var1_production[i + 1])
 }
 
 rmse_m1 <- Metrics::rmse(expected_values, predicted_values)
 mae_m1 <- Metrics::mae(expected_values, predicted_values)
-
-
-# predicted_values <- c()
-# expected_values <- c()
-# for (i in start_from:(nrow(data_for_model_level_split)-1)){
-#   train_set <- data_for_model_level_split[2:i,]
-#   model <- lm(production ~ ipi_m1 + ipi_m2 + lag_ipi_m1 + lag_ipi_m2 + lag1_production, data = train_set)
-#   # print(summary(model))
-#   in_level_current_predicted_production <- predict(model, data_for_model_level_split[i+1,])[[1]]
-#   in_level_previous_production <- data_for_prev$production[i]
-#   variation_prediction <- in_level_current_predicted_production / in_level_previous_production - 1
-#   predicted_values <- c(predicted_values, variation_prediction)
-#   expected_values <- c(expected_values, data_for_prev$var1_production[i+1])
-# }
-#
-# rmse_m2 <- Metrics::rmse(expected_values, predicted_values)
-# mae_m2 <- Metrics::mae(expected_values, predicted_values)
-
-
-
-# predicted_values <- c()
-# expected_values <- c()
-# for (i in start_from:(nrow(data_for_model_level_sum)-1)){
-#   train_set <- data_for_model_level_sum[2:i,]
-#   model <- lm(production ~ acquis_ipi_m2 + lag_acquis_ipi_m2 + lag1_production, data = train_set)
-#   # print(summary(model))
-#   in_level_current_predicted_production <- predict(model, data_for_model_level_sum[i+1,])[[1]]
-#   in_level_previous_production <- data_for_prev$production[i]
-#   variation_prediction <- in_level_current_predicted_production / in_level_previous_production - 1
-#   predicted_values <- c(predicted_values, variation_prediction)
-#   expected_values <- c(expected_values, data_for_prev$var1_production[i+1])
-# }
-#
-# rmse_m3 <- Metrics::rmse(expected_values, predicted_values)
-# mae_m3 <- Metrics::mae(expected_values, predicted_values)
 
 
 test <- data.frame(index = seq(1:length(predicted_values)), predicted_values = predicted_values, expected_values = expected_values)
@@ -208,8 +233,52 @@ test <- data.frame(index = seq(1:length(predicted_values)), predicted_values = p
 test2 <- test %>%
   pivot_longer(cols = c("predicted_values", "expected_values"),
                names_to = "dimension",
-  values_to = "value")
+               values_to = "value")
 
 ggplot(test2, aes(x = index, y = value, color = dimension)) +
   geom_line()
+
+
+# 5. calculate the prevision for the 2022Q3 ---------------------------------------------------------------
+
+data_final <- data_merged %>%
+  filter(date <= ymd("2022-07-01"))
+
+start_from <- 18
+predicted_values <- c()
+expected_values <- c()
+for (i in start_from:(nrow(data_final) - 1)) {
+  train_set <- data_final[3:i,]
+  model <- lm(var1_production ~ var1_acquis_m2, data = train_set)
+  predicted_values <- c(predicted_values, predict(model, data_final[i + 1,])[[1]])
+  expected_values <- c(expected_values, data_for_prev$var1_production[i + 1])
+
+}
+
+rmse_m1 <- Metrics::rmse(expected_values, predicted_values)
+mae_m1 <- Metrics::mae(expected_values, predicted_values)
+
+
+test <- data.frame(index = seq(1:length(predicted_values)), predicted_values = predicted_values, expected_values = expected_values)
+
+test2 <- test %>%
+  pivot_longer(cols = c("predicted_values", "expected_values"),
+               names_to = "dimension",
+               values_to = "value")
+
+  # get the colors
+  color_palette <- return_color_palette(color_list_name = "DGTresor_colors", nb_dimensions = 2)
+
+
+ggplot(test2, aes(x = index, y = value, color = dimension)) +
+  geom_line() +
+  labs(title = "France : prévision de la production dans l'industrie manufacturière",
+       subtitle = "Variation trimestrielle",
+       caption = "Derniers points : PE 2022T3, IPI d'août et PMI de septembre, \nCalculs DG Trésor") +
+  guides(color = guide_legend(title = "")) +
+  scale_color_manual(breaks = c("expected_values", "predicted_values"),
+                     labels = c("Observation", "Prévision"),
+                     palette = color_palette) +
+  my_theme()
+
 
