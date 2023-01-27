@@ -3,6 +3,9 @@
 # Created by: lphung
 # Created on: 12/09/2022
 
+# initialise the environment -------------------------------------------------------------------------------------------
+rm(list = ls())
+
 # packages -------------------------------------------------------------------------------------------------------------
 library(stringr)
 library(dplyr)
@@ -28,7 +31,7 @@ ONLY_UPDATE_NONREVISED_PRODUCTION_DATA <- TRUE
 # 1. load nonrevised ipi -------------------------------------------------------------------------------------------------
 if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
   # nonrevised_ipi <- update_nonrevised_ipi()
-  load("./data/nonrevised_ipi_2022-09-01.RData")
+  load("./data/nonrevised_ipi_2022-10-01.RData")
 } else {
   # preparation of the list
   IPI_DATA_FILES <- get_ipi_data_files(IPI_DATA_FOLDER)
@@ -39,11 +42,11 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
   # preparation of the matrix
   nonrevised_ipi <- construct_nonrevised_ipi_from_scratch(files_list = IPI_DATA_FILES,
                                                           file_type2files_list = IPI_FILES_TYPES,
-                                                          number_previous_values = 24,
+                                                          number_previous_values = 166, #24
                                                           data_correction = "CJO-CVS") # TODO: data_correction as argument within the function
-}
 
-# save(nonrevised_ipi, file = paste0("./data/", "nonrevised_ipi_", max(unique(nonrevised_ipi[["date"]])), ".RData"))
+  # save(nonrevised_ipi, file = paste0("./data/", "nonrevised_ipi_", max(unique(nonrevised_ipi[["date"]])), ".RData"))
+}
 
 # 2. load nonrevised production ----------------------------------------------------------------------------------------
 if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
@@ -61,10 +64,11 @@ if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
   # preparation of the matrix
   nonrevised_production <- construct_nonrevised_production_from_scratch(files_list = PRODUCTION_DATA_FOLDERS,
                                                                         file_type2files_list = PRODUCTION_FILES_TYPES,
-                                                                        number_previous_values = 24)
-}
+                                                                        number_previous_values = 47) #24
 
-# save(nonrevised_production, file = paste0("./data/", "nonrevised_production_", max(unique(nonrevised_production[["date"]])), "PE.RData"))
+  # save(nonrevised_production, file = paste0("./data/", "nonrevised_production_", max(unique(nonrevised_production[["date"]])), "PE.RData"))
+
+}
 
 # 3. create the dataframes for the prevision ---------------------------------------------------------------------------
 # Note: we forcast only the production in the manufacturing industry (i.e. CZ sector)
@@ -72,8 +76,8 @@ if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
 # 3.1. correct the non-revised data for the effects of changing bases
 # TODO: create a function for that (across columns) in data_preparator.R
 # load revised data to calculate the effects of changing bases
-load("./data/revised_ipi_2022-08-01.RData")
-load("./data/revised_production_2022-04-01PE.RData")
+load("./data/revised_ipi_2022-10-01.RData")
+load("./data/revised_production_2022-07-01RD.RData")
 
 # get the needed sector and, compare revised and nonrevised data
 compare_ipi <- merge_nonrevised_and_revised_data(revised_data = revised_ipi, nonrevised_data = nonrevised_ipi,
@@ -146,7 +150,7 @@ data_for_prev <- data_for_prev %>%
 data_for_model_var_sum <- data_for_prev %>%
   dplyr::filter(date <= ymd("2022-07-01")) %>%
   dplyr::arrange(date) %>%
-  dplyr::select(date, var1_production, var1_acquis_m2) %>%
+  dplyr::select(date, var1_production, var1_acquis_m1) %>%
   dplyr::mutate(lag1_var1_production = lag(var1_production))
 # %>% # TODO: maybe add the lag of the var1_acquis_m3 to get the variation of the full quarter before
 #   stats::ts(start = c(2011, 2), frequency = 4)
@@ -160,8 +164,8 @@ data_for_model_var_sum <- data_for_prev %>%
 pmi_manuf <- load_pmi_data_from_excel(path_to_data = PATH_TO_PMI_DATA,
                                       column_list = PMI_EXCEL_DIMENSIONS_TO_DATAFRAME_DIMENSIONS)
 survey_data <- pmi_manuf %>%
-  filter(dimension %in% c("pmi_climat", "pmi_production_passee"
-                          # , "pmi_new_commandes", "pmi_emploi"
+  filter(dimension %in% c("pmi_climat", "pmi_production_passee", "pmi_new_commandes"
+                          # , "pmi_emploi",
                           # , "pmi_delais_livraison", "pmi_stocks_achats"
   ))
 
@@ -239,7 +243,7 @@ ggplot(test2, aes(x = index, y = value, color = dimension)) +
   geom_line()
 
 
-# 5. calculate the prevision for the 2022Q3 ---------------------------------------------------------------
+# 5. calculate the prevision for the 2022Q4 ---------------------------------------------------------------
 
 data_final <- data_merged %>%
   filter(date <= ymd("2022-07-01"))

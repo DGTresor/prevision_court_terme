@@ -70,7 +70,7 @@ csv_pre_19T2RD_production_loader <- function(file_path, folder_name) {
   # get the dimensions' code according to the folder_name
   dimensions_list <- return_dimensions_list_for(folder_name)
   # clean the data to fit a proper syntax
-  clean_data <- data_cleaner_for_csv(new_data, dimensions_list = dimensions_list)
+  clean_data <- data_cleaner_for_csv(new_data, dimensions_list_name = dimensions_list)
   return(clean_data)
 }
 
@@ -128,21 +128,27 @@ return_dimensions_list_for <- function(folder_name) {
 
 transform_quarterly_string_dates_to_date <- function(date_column) {
   # the date values only contain the year and the quarter and sometimes additional characters so (1) we need to only extract the numbers and (2) add "01" for the day
-  date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\1", date_column), # extract the year
+  # date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\1", date_column), # extract the year
+  #                                                     "-",
+  #                                                     as.numeric(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\3", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
+  #                                                     "-01"))
+   # TODO : check if does not break the prevision code
+    date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "(A?)([0-9]{4})(Q|T)([1-9])", "\\2", date_column), # extract the year
                                                       "-",
-                                                      as.numeric(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\3", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
+                                                      as.numeric(sub(pattern = "(A?)([0-9]{4})(Q|T)([1-9])", "\\4", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
                                                       "-01"))
   return(date_column_in_date_format)
 }
 
 # data cleaners for specific format ------------------------------------------------------------------------------------
 # TODO : try to reduce code duplication between the two functions
-data_cleaner_for_csv <- function(data, dimensions_list, list_of_dimensions = DIMENSIONS_TO_KEEP) {
+data_cleaner_for_csv <- function(data, dimensions_list_name, list_of_dimensions = DIMENSIONS_TO_KEEP) {
   # get the proper list of dimensions
-  list_of_dimensions <- list_of_dimensions[[dimensions_list]]
+  list_of_dimensions <- list_of_dimensions[[dimensions_list_name]]
   # rename the first column
   ## Note: in this format, the first column contains national accounts' indicator codes (notably, value added and production by sectors)
-  clean_data <- data
+  clean_data <- data %>%
+    select(-contains("INTIT")) # TODO: check if break prevision code
   colnames(clean_data)[1] <- "dimension"
   # keep only the dimensions we need
   clean_data <- clean_data %>%

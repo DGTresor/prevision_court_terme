@@ -120,7 +120,7 @@ get_transformation_function <- function(transformation_type) {
 
 
 
-get_variation_for <- function(data, variation_type, nbr_lag = 1, dimensions_to_transform = NULL, dimensions_to_exclude = NULL, add_option = FALSE) {
+get_variation_for <- function(data, variation_type, nbr_lag = 1, dimensions_to_transform = NULL, dimensions_to_exclude = NULL, add_option = FALSE, keep_prefix = FALSE) {
   # select the dimensions
   if (is.null(dimensions_to_transform)) {
     dimensions_to_transform <- unique(data$dimension)
@@ -155,16 +155,18 @@ get_variation_for <- function(data, variation_type, nbr_lag = 1, dimensions_to_t
                                                                             transformed_data = data_with_variation,
                                                                             dimensions_to_transform = dimensions_to_transform,
                                                                             add_option = add_option,
+                                                                            keep_prefix = keep_prefix,
                                                                             prefix = prefix)
   return(full_data_with_variation)
 }
 
-
-combine_transformed_series_with_original_data <- function(original_data, transformed_data, dimensions_to_transform, add_option, prefix) {
-  if (add_option) {
+combine_transformed_series_with_original_data <- function(original_data, transformed_data, dimensions_to_transform, add_option, keep_prefix, prefix) {
+  if (add_option | keep_prefix) {
     transformed_data <- transformed_data %>%
       dplyr::mutate(dimension = paste(prefix, dimension, sep = "_")) # NB: if we modify the dimension value, it will be considered as another dimension during the join
-    dimensions_to_transform <- c() # i.e. we will take all the original dimensions
+    if(add_option) {
+      dimensions_to_transform <- c() # i.e. we will take all the original dimensions
+    }
   }
   combined_data <- original_data %>%
     filter(!(dimension %in% dimensions_to_transform)) %>% # if add_option = FALSE, remove the dimensions that have been extended to prevent duplication
