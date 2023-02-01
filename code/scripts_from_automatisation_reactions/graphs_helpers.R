@@ -63,8 +63,8 @@ get_the_closest_value <- function(number, vector_of_numbers){
 
 convert_digits_to_rounding_value <- function(number) {
   if (stringr::str_detect(number, "^0.")) {
-    decimals <- stringr::str_replace(number, "(^0\\.)(.*)", "\\2")
-    return(nchar(decimals))
+    decimals <- stringr::str_replace(number, "(^0\\.)(0*)(.*)", "\\2")  # CHECK: modification compare to automatisation_reactions code
+    return(nchar(decimals) + 1)
   } else {
     integer <- stringr::str_replace(number, "([:digit:]*)\\.([:digit:]*)", "\\1")
     return(-nchar(integer) + 1)
@@ -163,4 +163,40 @@ format_dates_on_two_lines <- function(x) {
 
 format_variations_with_point <- function(x) {
   paste(x, "pt")
+}
+
+
+
+########################################################################################################################
+########################################################################################################################
+# from functions_generator.R in automatisation_reactions project
+
+get_last_available_value <- function(data, dimension, nbr_digits = 1, hide_zero = FALSE) {
+  last_date_with_available_data <- get_last_date_with_available_data(data, dimension)
+  formatted_value <- get_value_for_date(data, dimension, for_date = last_date_with_available_data, nbr_digits = nbr_digits, hide_zero = hide_zero)
+  return(formatted_value)
+}
+
+get_last_available_variation <- function(data, dimension, nbr_digits = 1, hide_zero = FALSE) {
+  last_date_with_available_data <- get_last_date_with_available_data(data, dimension)
+  formatted_value <- get_monthly_variation_for_date(data, dimension = dimension, for_date = last_date_with_available_data, nbr_digits = nbr_digits)
+  return(formatted_value)
+}
+
+get_last_date_with_available_data <- function(data, dimension) {
+  dataframe_with_no_missing_values <- data %>%
+    filter(dimension == dimension) %>%
+    filter(!is.na(value))
+  return(max(dataframe_with_no_missing_values$date))
+}
+
+get_monthly_variation_for_date <- function(data, dimension, for_date, comparison_date = NULL, nbr_digits = 1, hide_zero = FALSE, numeric = FALSE,
+                                           format_type = DEFAULT_FORMAT_TYPE, get_variation_of_rounded_nbr = DEFAULT_ROUNDING_PRINCIPLE) {
+  m_variation <- get_monthly_variation_for_date_numeric(data, dimension, for_date, comparison_date = comparison_date, nbr_digits = nbr_digits,
+                                                        format_type = format_type, get_variation_of_rounded_nbr = get_variation_of_rounded_nbr)
+  if (numeric) {
+    return(m_variation)
+  } else {
+    return(transform_to_string(m_variation, "variation", nbr_digits, hide_zero, format_type))
+  }
 }
