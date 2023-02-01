@@ -21,7 +21,7 @@ library(zoo)
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8")
 source("./code/data_preparator.R", encoding = "utf-8")
 # source("./code/scripts_from_prevision_production_manuf/graph_design_parameters.R", encoding = "utf-8", chdir = TRUE)
-source("./code/scripts_from_automatisation_reactions/general_graph_functions.R", encoding= "utf-8", chdir = TRUE)
+source("./code/scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 
@@ -30,7 +30,7 @@ source("./code/scripts_from_automatisation_reactions/general_graph_functions.R",
 
 # load data ------------------------------------------------------------------------------------------------------------
 
-# load("./code/doc_travail_interpretation_enquetes/data_doc_travail_20230125.RData")
+# load("./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
 
 pib_data <- pib_loader(folder_path = PIB_DATA_FOLDER,
                        file_name = PIB_FILE_NAME,
@@ -89,7 +89,19 @@ full_data <- pib_data %>%
                 lead_diff1_insee_global_m3 = lead(diff1_insee_global_m1),
                 lead_insee_global_m1 = lead(insee_global_m1))
 
-# save(full_data, file = "./code/doc_travail_interpretation_enquetes/data_doc_travail_20230125.RData")
+full_data <- full_data %>%
+  dplyr::select(date, contains(c("PIB", "global", "composite"))) %>%
+  dplyr::mutate(pmi_composite_m_1 = lag(pmi_composite_m3),
+                pmi_composite_m_2 = lag(pmi_composite_m2),
+                bdf_global_m_1 = lag(bdf_global_m3),
+                bdf_global_m_2 = lag(bdf_global_m2)
+  ) %>%
+  dplyr::mutate(pmi_composite_trim_formel = 1/9 * pmi_composite_m3 + 2/9 * pmi_composite_m2 + 1/3 * pmi_composite_m1 + 2/9 * pmi_composite_m_1 + 1/9 * pmi_composite_m_2,
+                bdf_global_trim_formel = 1/9 * bdf_global_m3 + 2/9 * bdf_global_m2 + 1/3 * bdf_global_m1 + 2/9 * bdf_global_m_1 + 1/9 * bdf_global_m_2) %>%
+  dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
+
+
+# save(full_data, file = "./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
 
 
 # analysis -------------------------------------------------------------------------------------------------------------
@@ -104,8 +116,6 @@ data_graph_evol_PIB <- full_data %>%
                       names_to = "dimension",
                       values_to = "value") %>%
   dplyr::mutate(quarter = zoo::as.yearqtr(date))
-
-color_palette_2_dim <- return_color_palette(color_list_name = "DGTresor_colors", nb_dimensions = 2)
 
 # Graphique variation trimestrielle
 ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
@@ -210,16 +220,76 @@ full_data %>%
 #     dplyr::bind_rows(new_df)
 # }
 
+
+# Plot PIB et climats
+## en variation trimestrielle
+data_graph_evol_PIB_climat_vt <- full_data %>%
+  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::select(date, var1_PIB, lead_insee_global_m1, qt_pmi_composite) %>%
+  tidyr::pivot_longer(cols = c("var1_PIB", "lead_insee_global_m1", "qt_pmi_composite"),
+                      names_to = "dimension",
+                      values_to = "value")
+
+data_graph_evol_PIB_climat_ga <- full_data %>%
+  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::select(date, var4_PIB, qt_insee_global, qt_bdf_global, qt_pmi_composite) %>%
+  tidyr::pivot_longer(cols = c("var4_PIB", "qt_insee_global", "qt_bdf_global", "qt_pmi_composite"),
+                      names_to = "dimension",
+                      values_to = "value")
+
+compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_var_trim_insee_pmi",
+                                          graph_folder = "./output",
+                                          insee_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "lead_insee_global_m1"),
+                                          pmi_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                          title = "Variation trimestrielle du PIB et indicateurs synthétiques centrés-réduits",
+                                          label_list = list("insee" = "Climat global de l'Insee au mois 1 du trimestre T+1",
+                                                            "pmi" = "PMI trimestriel moyen"),
+                                          reduced_centered = "manual",
+                                          graph_source = "Insee et S&P",
+                                          graph_saving = FALSE) +
+  geom_line(data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "var1_PIB"),
+            aes(x = date, y = value * 100, linetype = dimension), color = "black") +
+  scale_linetype_manual(values = "longdash",
+                        labels = "Variation trimestrielle du PIB") +
+  scale_y_continuous(sec.axis = sec_axis(~. / 100,
+                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
+  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
+
+
+compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_ga_insee_pmi_bdf",
+                                          graph_folder = "./output",
+                                          insee_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_insee_global"),
+                                          bdf_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_bdf_global"),
+                                          pmi_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                          title = "Glissement annuel du PIB et indicateurs synthétiques trimestriels moyens centrés-réduits",
+                                          label_list = list("insee" = "Climat global Insee",
+                                                            "bdf" = "Climat global Banque de France",
+                                                            "pmi" = "PMI composite"),
+                                          reduced_centered = "manual",
+                                          graph_source = "Insee, Banque de France et S&P",
+                                          graph_saving = FALSE) +
+  geom_line(data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "var4_PIB"),
+            aes(x = date, y = value * 100 - 1, linetype = dimension), color = "black") +
+  scale_linetype_manual(values = "longdash",
+                        labels = "Glissement annuel du PIB") +
+  scale_y_continuous(breaks = c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4),
+                     sec.axis = sec_axis(~(. + 1) / 100,
+                                         breaks = (c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4) + 1) / 100,
+                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
+  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
+
+
 ## Partie 1 : correlations --------------------------------------------
 
-subset_data <- full_data %>%
-  dplyr::select(date, var1_PIB, var4_PIB, insee_global_m1, insee_global_m3, lead_insee_global_m1, qt_insee_global,
-                var1_insee_global_m3, lead_var1_insee_global_m3, var1_qt_insee_global,
-                diff1_insee_global_m3, lead_diff1_insee_global_m3, diff1_qt_insee_global,
-                qt_pmi_composite, var1_qt_pmi_composite, diff1_qt_pmi_composite,
-                qt_bdf_global, var1_qt_bdf_global, diff1_qt_bdf_global,
-                var4_qt_pmi_composite, var4_qt_bdf_global, var4_qt_insee_global
-  )
+subset_data <- full_data 
+# %>%
+#   dplyr::select(date, var1_PIB, var4_PIB, insee_global_m1, insee_global_m3, lead_insee_global_m1, qt_insee_global,
+#                 var1_insee_global_m3, lead_var1_insee_global_m3, var1_qt_insee_global,
+#                 diff1_insee_global_m3, lead_diff1_insee_global_m3, diff1_qt_insee_global,
+#                 qt_pmi_composite, var1_qt_pmi_composite, diff1_qt_pmi_composite,
+#                 qt_bdf_global, var1_qt_bdf_global, diff1_qt_bdf_global,
+#                 var4_qt_pmi_composite, var4_qt_bdf_global, var4_qt_insee_global
+#   )
 
 corrplot_data <- subset_data %>%
   dplyr::filter(date >= lubridate::ymd("1999-04-01") & date <= lubridate::ymd("2019-10-10")
@@ -280,7 +350,7 @@ corrplot::corrplot(cor(corrplot_threshold %>% dplyr::select(-date), method = "pe
 ## Check stabilité corrélation dans le temps (fenêtre de 10 ans roulantes)
 # -----------------------> GO TO PARTIE 3 to check relations between indices and define the estimation period
 # NOTE : use subset_data to replicate the results for all indices; the starting date must be 2000-01-01 for the var4_qt_pmi_composite indice
-# NOTE : use main_indices_data_reduced for the graphs
+# NOTE : use main_indices_data for the graphs
 
 tableau_1_doc_travail <- subset_data %>%
   dplyr::filter(date >= lubridate::ymd("1999-04-01") & date <= lubridate::ymd("2019-10-10")) %>%
@@ -308,21 +378,21 @@ graph_corr_doc_travail_ga <- main_indices_data %>%
 
 
 # -------------------> sample to use for correlations' tables and graphs :
-SAMPLE_TO_USE_CORR <- graph_corr_doc_travail_ga
+SAMPLE_TO_USE_CORR <- tableau_2_doc_travail_ga
 
 # First occurence
 WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
 first_correlations <- cor(SAMPLE_TO_USE_CORR[1:WINDOW_SIZE,] %>% dplyr::select(-date), method = "pearson")[, c("var1_PIB", "var4_PIB")]
 rolling_correlations <- data.frame(first_correlations,
                                    dimension = row.names(first_correlations),
-                                   date = rep(SAMPLE_TO_USE_CORR$date[[WINDOW_SIZE]], 7))
+                                   date = rep(SAMPLE_TO_USE_CORR$date[[WINDOW_SIZE]], length(row.names(first_correlations))))
 
 # Following occurences
 for (i in (WINDOW_SIZE + 1):nrow(SAMPLE_TO_USE_CORR)) {
   correlations <- cor(SAMPLE_TO_USE_CORR[(i - WINDOW_SIZE + 1):i,] %>% dplyr::select(-date), method = "pearson")[, c("var1_PIB", "var4_PIB")]
   new_df <- data.frame(correlations,
                        dimension = row.names(correlations),
-                       date = rep(SAMPLE_TO_USE_CORR$date[[i]], 7))
+                       date = rep(SAMPLE_TO_USE_CORR$date[[i]], length(row.names(first_correlations))))
   rolling_correlations <- rolling_correlations %>%
     dplyr::bind_rows(new_df)
 }
@@ -334,17 +404,39 @@ rolling_correlations %>%
   dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))
 
 # Plotting evolution
+color_palette_5_dimensions <- return_color_palette(color_list_name = "DGTresor_colors", nb_dimensions = 5)
+
 ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))) +
   aes(x = date, y = var1_PIB, color = dimension) +
   geom_line() +
-  labs(title = paste("Evolution dans le temps de la corrélation entre les climats et la variation trimestrielle du PIB
-    avec une estimation roulante réalisée sur fenêtres de", WINDOW_SIZE / 4, "ans"))
+  labs(title = "Evolution dans le temps de la corrélation entre les climats et la variation trimestrielle du PIB",
+       subtitle = paste("Estimation roulante réalisée sur fenêtres de", WINDOW_SIZE / 4, "ans sur la période 2001T1 - 2019T4 (exclusion crise 2008-9)"),
+       caption = "Source : Insee, Banque de France (BdF) et S&P") +
+  my_theme() +
+  scale_y_continuous(breaks = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6),
+                     labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
+  scale_color_manual(labels = list("qt_pmi_composite" = "PMI composite trimestrialisé",
+                                   "qt_bdf_global" = "Climat global BdF trimestrialisé",
+                                   "qt_insee_global" = "Climat global Insee trimestrialisé",
+                                   "insee_global_m3" = "Climat global au mois 3 de l'Insee",
+                                   "lead_insee_global_m1" = "Climat global au mois 1 (T+1) de l'Insee"),
+                     palette = color_palette_5_dimensions)
+
 
 ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))) +
   aes(x = date, y = var4_PIB, color = dimension) +
   geom_line() +
-  labs(title = paste("Evolution dans le temps de la corrélation entre les climats et le glissement annuel du PIB
-    avec une estimation roulante réalisée sur fenêtres de", WINDOW_SIZE / 4, "ans"))
+labs(title = "Evolution dans le temps de la corrélation entre les climats et le glissement annuel du PIB",
+       subtitle = paste("Estimation roulante réalisée sur fenêtres de", WINDOW_SIZE / 4, "ans sur la période 2001T1 - 2019T4 (exclusion crise 2008-9)"),
+       caption = "Source : Insee, Banque de France (BdF) et S&P") +
+  my_theme() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
+  scale_color_manual(labels = list("qt_pmi_composite" = "PMI composite trimestrialisé",
+                                   "qt_bdf_global" = "Climat global BdF trimestrialisé",
+                                   "qt_insee_global" = "Climat global Insee trimestrialisé",
+                                   "insee_global_m3" = "Climat global au mois 3 de l'Insee",
+                                   "lead_insee_global_m1" = "Climat global au mois 1 (T+1) de l'Insee"),
+                     palette = color_palette_5_dimensions)
 
 
 ############ 4ème enseignement :
@@ -588,7 +680,7 @@ ggplot(data = full_sample_graphs) +
   ) +
   my_theme() +
   geom_hline(yintercept = 0) +
-  scale_y_continuous(breaks = c(-0.04,-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
+  scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
 
 # PMI - sample without outliers
@@ -622,7 +714,7 @@ ggplot(data = full_sample_graphs) +
   ) +
   my_theme() +
   geom_hline(yintercept = 0) +
-  scale_y_continuous(breaks = c(-0.04,-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
+  scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
 
 # Insee lead M1 - sample without outliers
@@ -656,7 +748,7 @@ ggplot(data = full_sample_graphs) +
   ) +
   my_theme() +
   geom_hline(yintercept = 0) +
-  scale_y_continuous(breaks = c(-0.04,-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
+  scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
 
 # Insee trim - sample without outliers
@@ -690,7 +782,7 @@ ggplot(data = full_sample_graphs) +
   ) +
   my_theme() +
   geom_hline(yintercept = 0) +
-  scale_y_continuous(breaks = c(-0.04,-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
+  scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
 
 # Climat trim BdF - sample without outliers
@@ -709,7 +801,6 @@ ggplot(data = sample_without_outliers_graphs_ga) +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
-
 
 
 ## 2. régression logit ? // Quelle variation du PIB la plus probable pour un PMI à 50 et un climat à 100 ? // climat le plus probable pour une croissance à 0%

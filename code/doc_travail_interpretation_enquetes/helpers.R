@@ -8,7 +8,7 @@ library(readr)
 
 # dependencies
 source("./code/nonrevised_production/loaders.R", encoding = "utf-8", chdir = TRUE)
-source("./code/scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")
+source("./code/old_scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")
 
 # constants ------------------------------------------------------------------------------------------------------------
 PIB_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014"
