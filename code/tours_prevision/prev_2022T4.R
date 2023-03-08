@@ -13,22 +13,23 @@ library(lubridate)
 library(stats)
 library(forecast)
 library(ggplot2)
-source("./code/data_importator.R", encoding = "utf-8")
-source("./code/data_preparator.R", encoding = "utf-8")
-source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
-source("./code/nonrevised_production/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
-source("./code/scripts_from_prevision_production_manuf/graph_design_parameters.R", encoding = "utf-8", chdir = TRUE)
+library(DGTresorGraphes)
+
+source("../data_importator.R", encoding = "utf-8")
+source("../data_preparator.R", encoding = "utf-8")
+source("../nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("../nonrevised_production/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
-source("./code/scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")
-source("./code/scripts_from_prevision_production_manuf/data_transformation.R", encoding = "utf-8")
+source("../old_scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")
+source("../old_scripts_from_prevision_production_manuf/data_transformation.R", encoding = "utf-8")
 
 
 # load data ------------------------------------------------------------------------------------------------------------
-load("./data/nonrevised_ipi_2022-10-01.RData")
-load("./data/nonrevised_production_2022-07-01PE.RData")
-load("./data/revised_ipi_2022-10-01.RData")
-load("./data/revised_production_2022-07-01RD.RData")
+load("../../data/nonrevised_ipi_2022-10-01.RData")
+load("../../data/nonrevised_production_2022-07-01PE.RData")
+load("../../data/revised_ipi_2022-10-01.RData")
+load("../../data/revised_production_2022-07-01RD.RData")
 
 # prepare data for prev ------------------------------------------------------------------------------------------------
 # get the needed sector and, compare revised and nonrevised data
@@ -40,14 +41,14 @@ compare_production <- merge_nonrevised_and_revised_data(revised_data = revised_p
 
 # get nonrevised data corrected for the effects of changing bases
 nonrevised_ipi_cz <- compare_ipi %>%
-  dplyr::filter(dimension == "nonrevised_ipi") %>%
+  dplyr::filter(dimension == "../nonrevised_ipi") %>%
   dplyr::mutate(value = case_when(
     lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ value + get_changing_base_shift(compare_ipi, "2009-01-01", "2012-12-01"),
     TRUE ~ value
   ))
 
 nonrevised_production_cz <- compare_production %>%
-  dplyr::filter(dimension == "nonrevised_production") %>%
+  dplyr::filter(dimension == "../nonrevised_production") %>%
   dplyr::mutate(value = case_when(
     lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ value + get_changing_base_shift(compare_production, "2011-01-01", "2013-10-01"),
     lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ value + get_changing_base_shift(compare_production, "2014-01-01", "2018-01-01"),
@@ -170,7 +171,7 @@ test2 <- test %>%
                values_to = "value")
 
 # get the colors
-color_palette <- return_color_palette(color_list_name = "DGTresor_colors", nb_dimensions = 2)
+color_palette <- color_palette_for(color_list_name = "FR_derouleur", nb_dimensions = 2)
 
 
 ggplot(test2, aes(x = index, y = value, color = dimension)) +
@@ -182,5 +183,5 @@ ggplot(test2, aes(x = index, y = value, color = dimension)) +
   scale_color_manual(breaks = c("expected_values", "predicted_values"),
                      labels = c("Observation", "Prévision"),
                      palette = color_palette) +
-  my_theme()
+  dgtresor_theme()
 

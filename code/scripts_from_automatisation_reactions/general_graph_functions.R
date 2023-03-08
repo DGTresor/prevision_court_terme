@@ -11,9 +11,9 @@ library(ggtext)
 library(grDevices)
 library(lubridate)
 library(devEMF)
+library(DGTresorGraphes)
 
 # Dependancy to:
-source("./graph_design_parameters.R", encoding = "utf-8")
 source("./graphs_helpers.R", encoding = "utf-8")
 source("./data_transformation_helpers.R", encoding = "utf-8")
 
@@ -24,7 +24,7 @@ source("./data_transformation_helpers.R", encoding = "utf-8")
 
 graph_donnees_conj <- function(graph_name, data, graph_folder, graph_start_date = NULL, graph_end_date = NULL,
                                dimensions_to_plot = NULL, main_dimension = "", label_list = NULL, title = "", graph_source = "",
-                               subtitle = NULL, color_list_name = "DGTresor_colors", horizontal_line = NULL,
+                               subtitle = NULL, color_list_name = "FR_derouleur", horizontal_line = NULL,
                                y_min = NULL, y_max = NULL, y_breaks = NULL, date_breaks = NULL, date_labels = NULL,
                                legend_position = "bottom", graph_saving = TRUE, graph_saving_format = "emf") {
   # preparing the constants
@@ -38,7 +38,7 @@ graph_donnees_conj <- function(graph_name, data, graph_folder, graph_start_date 
                                  data = data)
 
   # get the colors
-  color_palette <- return_color_palette(color_list_name = color_list_name, nb_dimensions = length(dimensions_to_plot[dimensions_to_plot != main_dimension]))
+  color_palette <- color_palette_for(color_list_name = color_list_name, nb_dimensions = length(dimensions_to_plot[dimensions_to_plot != main_dimension]))
 
   # keep the data we need for the plot
   data_to_plot <- data %>%
@@ -49,7 +49,7 @@ graph_donnees_conj <- function(graph_name, data, graph_folder, graph_start_date 
   indices_plot <- ggplot(data_to_plot) +
     geom_line(data = data_to_plot %>% filter(dimension != main_dimension),
               aes(x = date, y = value, color = dimension)) +
-    my_theme() +
+    dgtresor_theme() +
     theme(legend.position = legend_position)
 
   # add an horizontal line
@@ -143,7 +143,7 @@ graph_donnees_conj <- function(graph_name, data, graph_folder, graph_start_date 
 #TODO: data transformation should be done outside of the graph function. Maybe that can be replaced by the main graph function OR keep another function, more complicated to have 2 axes
 compare_insee_pmi_bdf_for_one_index_graph <- function(graph_name, graph_folder, insee_data = NULL, bdf_data = NULL, pmi_data = NULL,
                                                       graph_start_date = NULL, label_list = NULL,
-                                                      title = "", graph_source = "", color_list_name = "DGTresor_colors",
+                                                      title = "", graph_source = "", color_list_name = "FR_derouleur",
                                                       y_min = NULL, y_max = NULL, y_breaks = NULL, date_breaks = NULL, date_labels = NULL,
                                                       graph_saving = TRUE, graph_saving_format = "emf", reduced_centered = "no") {
 
@@ -160,7 +160,7 @@ compare_insee_pmi_bdf_for_one_index_graph <- function(graph_name, graph_folder, 
   }
 
   # get the colors
-  color_palette <- return_color_palette(color_list_name = color_list_name, nb_dimensions = length(dimensions_to_plot))
+  color_palette <- color_palette_for(color_list_name = color_list_name, nb_dimensions = length(dimensions_to_plot))
 
   # keep the data we need for the plot
   data_to_plot <- merged_data %>%
@@ -177,7 +177,7 @@ compare_insee_pmi_bdf_for_one_index_graph <- function(graph_name, graph_folder, 
   indices_plot <- ggplot(data_to_plot) +
     geom_line(data = data_to_plot,
               aes(x = date, y = value, color = dimension)) +
-    my_theme() +
+    dgtresor_theme() +
     theme(legend.position = "bottom") +
     geom_hline(yintercept = horizontal_line, col = "black", size = 0.5)               # add an horizontal line
 

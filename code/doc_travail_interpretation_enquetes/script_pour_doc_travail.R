@@ -135,7 +135,7 @@ ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
        subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, calculs DG Trésor,
                   Données : RD 2022T3 des comptes nationaux trimestriels") +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02),
                      labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
@@ -151,7 +151,7 @@ ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
        subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, calculs DG Trésor,
                   Données : RD 2022T3 des comptes nationaux trimestriels") +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
@@ -414,7 +414,7 @@ rolling_correlations %>%
   dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))
 
 # Plotting evolution
-color_palette_5_dimensions <- return_color_palette(color_list_name = "DGTresor_colors", nb_dimensions = 5)
+color_palette_5_dimensions <- color_palette_for(color_list_name = "FR_derouleur", nb_dimensions = 5)
 
 ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))) +
   aes(x = date, y = var1_PIB, color = dimension) +
@@ -422,7 +422,7 @@ ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "va
   labs(title = "Evolution dans le temps de la corrélation entre les climats et la variation trimestrielle du PIB",
        subtitle = paste("Estimation roulante réalisée sur fenêtres de", WINDOW_SIZE / 4, "ans sur la période 2001T1 - 2019T4 (exclusion crise 2008-9)"),
        caption = "Source : Insee, Banque de France (BdF) et S&P") +
-  my_theme() +
+  dgtresor_theme() +
   scale_y_continuous(breaks = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6),
                      labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
   scale_color_manual(labels = list("qt_pmi_composite" = "PMI composite trimestrialisé",
@@ -439,7 +439,7 @@ ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "va
   labs(title = "Evolution dans le temps de la corrélation entre les climats et le glissement annuel du PIB",
        subtitle = paste("Estimation roulante réalisée sur fenêtres de", WINDOW_SIZE / 4, "ans sur la période 2001T1 - 2019T4 (exclusion crise 2008-9)"),
        caption = "Source : Insee, Banque de France (BdF) et S&P") +
-  my_theme() +
+  dgtresor_theme() +
   scale_y_continuous(labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
   scale_color_manual(labels = list("qt_pmi_composite" = "PMI composite trimestrialisé",
                                    "qt_bdf_global" = "Climat global BdF trimestrialisé",
@@ -651,7 +651,7 @@ ggplot(data = full_sample_graphs) +
        x = "PMI composite trimestrialisé",
        y = "Variation trimestrielle du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.015, -0.01, -0.005, 0, 0.005, 0.01, 0.015, 0.02),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -668,7 +668,7 @@ ggplot(data = sample_without_outliers_graphs_vt) +
        x = "PMI composite trimestrialisé",
        y = "Variation trimestrielle du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.006, -0.004, -0.002, 0, 0.002, 0.004, 0.006, 0.008, 0.01),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -686,7 +686,7 @@ ggplot(data = full_sample_graphs) +
        x = "Climat Insee au mois 1 du trimestre T+1",
        y = "Variation trimestrielle du PIB au trimestre T"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.015, -0.01, -0.005, 0, 0.005, 0.01, 0.015, 0.02),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -703,7 +703,7 @@ ggplot(data = sample_without_outliers_graphs_vt) +
        x = "Climat Insee au mois 1 du trimestre T+1",
        y = "Variation trimestrielle du PIB au trimestre T"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.006, -0.004, -0.002, 0, 0.002, 0.004, 0.006, 0.008, 0.01),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -720,7 +720,7 @@ ggplot(data = full_sample_graphs) +
        x = "Climat Banque de France trimestrialisé",
        y = "Variation trimestrielle du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.015, -0.01, -0.005, 0, 0.005, 0.01, 0.015, 0.02),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -737,7 +737,7 @@ ggplot(data = sample_without_outliers_graphs_vt) +
        x = "Climat Banque de France trimestrialisé",
        y = "Variation trimestrielle du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.006, -0.004, -0.002, 0, 0.002, 0.004, 0.006, 0.008, 0.01),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -756,7 +756,7 @@ ggplot(data = full_sample_graphs) +
        x = "PMI composite trimestrialisé",
        y = "Glissement annuel du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -773,7 +773,7 @@ ggplot(data = sample_without_outliers_graphs_ga) +
        x = "PMI composite trimestrialisé",
        y = "Glissement annuel du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -790,7 +790,7 @@ ggplot(data = full_sample_graphs) +
        x = "Climat Insee au mois 1 du trimestre T+1",
        y = "Glissement annuel du PIB au trimestre T"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -807,7 +807,7 @@ ggplot(data = sample_without_outliers_graphs_ga) +
        x = "Climat Insee au mois 1 du trimestre T+1",
        y = "Glissement annuel du PIB au trimestre T"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -824,7 +824,7 @@ ggplot(data = full_sample_graphs) +
        x = "Climat Insee trimestrialisé",
        y = "Glissement annuel du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -841,7 +841,7 @@ ggplot(data = sample_without_outliers_graphs_ga) +
        x = "Climat Insee trimestrialisé",
        y = "Glissement annuel du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -858,7 +858,7 @@ ggplot(data = full_sample_graphs) +
        x = "Climat Banque de France trimestrialisé",
        y = "Glissement annuel du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
@@ -875,7 +875,7 @@ ggplot(data = sample_without_outliers_graphs_ga) +
        x = "Climat Banque de France trimestrialisé",
        y = "Glissement annuel du PIB"
   ) +
-  my_theme() +
+  dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))

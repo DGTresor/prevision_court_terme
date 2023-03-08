@@ -7,6 +7,7 @@ references_retraitement_IPI/
 input/
 output/
 data/
+tours_prevision/
 code/doc_travail_interpretation_enquetes/data/
 code/doc_travail_interpretation_enquetes/output/
 *.docx
