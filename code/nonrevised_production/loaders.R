@@ -12,6 +12,11 @@ library(lubridate)
 source("../loader_fundamentals.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
+# constants for revised production -------------------------------------------------------------------------------------
+PRODUCTION_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014"
+PRODUCTION_FILE_NAME <- "cprvolch.csv"
+PRODUCTION_DIMENSIONS <- list("default" = c("revised_production" = "TD.P1E_DIM_7CH"))
+
 # constants ------------------------------------------------------------------------------------------------------------
 # /!\ Note: pre_2010 classification applies to 2010 quarters and before; for 2010, and before, the classification is different. So, we decide not to use data before 2011.
 # Note: .xls, .cvs or .RData files are available only from base2000 on, i.e. starting from the 2007T4PE account.
