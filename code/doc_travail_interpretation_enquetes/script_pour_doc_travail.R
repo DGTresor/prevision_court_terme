@@ -31,7 +31,7 @@ LOAD_EXISTING_DATA <- TRUE      # if FALSE, update data
 # load data ------------------------------------------------------------------------------------------------------------
 
 if (LOAD_EXISTING_DATA) {
-  load("./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
+  load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
 } else {
   # read data --------------------
   pib_data <- compta_nat_loader(folder_path = PIB_DATA_FOLDER,
@@ -110,7 +110,7 @@ if (LOAD_EXISTING_DATA) {
                     1 / 9 * bdf_global_m_2) %>%
     dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
 
-  save(full_data, file = "./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
+  save(full_data, file = "./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
 }
 
 

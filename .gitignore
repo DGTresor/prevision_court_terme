@@ -7,5 +7,8 @@ references_retraitement_IPI/
 input/
 output/
 data/
+code/doc_travail_interpretation_enquetes/data/
+code/doc_travail_interpretation_enquetes/output/
 *.docx
+*.xlsx
 *.html
