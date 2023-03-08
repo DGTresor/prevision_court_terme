@@ -26,7 +26,7 @@ merge_nonrevised_and_revised_data <- function(revised_data, nonrevised_data, dim
     dplyr::rename(!!col_revised := !!col_nonrevised)
 
   merged_data <- selected_nonrevised_data %>%
-      dplyr::bind_rows(selected_revised_data)
+    dplyr::bind_rows(selected_revised_data)
 
   return(merged_data)
 }
@@ -48,10 +48,6 @@ get_changing_base_shift <- function(df_with_revised_and_nonrevised_data, start_p
 }
 
 
-
-
-
-
 ########################################################################################################################
 ########################################################################################################################
 ########################################################################################################################
@@ -66,11 +62,25 @@ convert_to_wide_format <- function(long_format_data) {
   return(wide_format)
 }
 
+convert_to_long_format <- function(wide_format_data) {
+  columns_to_pivot <- names(wide_format_data)[names(wide_format_data) != "date"]
+  if ("dimenion" %in% columns_to_pivot) {
+    wide_format_data <- wide_format_data %>%
+      dplyr::rename(primary_dimension = dimension)
+    columns_to_pivot <- c("primary_dimension", columns_to_pivot[columns_to_pivot != "dimension"])
+  }
+
+  long_format <- wide_format_data %>%
+    tidyr::pivot_longer(cols = columns_to_pivot,
+                        names_to = "dimension",
+                        values_to = "value")
+  return(long_format)
+}
+
 # functions ------------------------------------------------------------------------------------------------------------
 
 month_to_quarter <- function(data, transformation_type) {
   # Mixing monthly and quarterly data is a bad idea => we transform all the dimensions to quarter
-  dimensions_to_transform <- unique(data$dimension)
   quarterly_data <- data
 
   # perform the transformation
@@ -108,6 +118,45 @@ split_data_by_month_position_in_quarter <- function(data) {
   return(split_data)
 }
 
+split_data_in_quarter_for_vintage <- function(data, lag_quarter = FALSE) {
+  # check only one dimension # TODO: make it compatible for several dimensions
+  sole_dimension <- unique(data$dimension)
+  if (length(sole_dimension) != 1) {
+    stop("Data must have only one dimension for \"split_data_in_quarter_for_vintage\" in the month_to_quarter() function.")
+  }
+  split_data <- data %>%
+    dplyr::mutate(month = lubridate::month(date),
+                  month_position = dplyr::case_when(month %in% c(1, 4, 7, 10) ~ 1,
+                                                    month %in% c(2, 5, 8, 11) ~ 2,
+                                                    month %in% c(3, 6, 9, 12) ~ 3))
+
+  # keep the quarterly dates
+  month_of_last_quarter <- split_data$month_position[split_data$date == max(unique(split_data$date))]
+  split_data <- split_data %>%
+    dplyr::filter(month_position == month_of_last_quarter) %>%
+    dplyr::select(-c(month, month_position, dimension)) %>%
+    monthly_date2quarterly_date()
+
+  # define the new column names
+  column_names <- define_column_names_for_vintage_data(dimension = sole_dimension, month_position = month_of_last_quarter, number_data_columns = length(split_data) - 1,
+                                                       lag_quarter = lag_quarter)
+  names(split_data) <- column_names
+
+  return(split_data)
+}
+
+define_column_names_for_vintage_data <- function(dimension, month_position, number_data_columns, lag_quarter) {
+  if (lag_quarter) {
+    data_columns <- paste0(dimension, "_m", month_position - 3 - seq(from = 0, to = (number_data_columns - 1)))
+    message("Puisque l'option lag_quater a été mise à TRUE, le mois 3 du trimestre T est nommé ipi_m0. \nIl faut donc avancer les colonnes d'un trimestre (avec la fonction lead()) pour que l'ipi_m0 corresponde bien au m0 du trimestre T+1.")
+  } else {
+    data_columns <- paste0(dimension, "_m", month_position - seq(from = 0, to = (number_data_columns - 1)))
+  }
+  column_names <- c("date", data_columns)
+  column_names <- stringr::str_replace(column_names, pattern = "-", replacement = "_")
+  return(column_names)
+}
+
 get_transformation_function <- function(transformation_type) {
   if (transformation_type == "sum") {
     return(base::sum)
@@ -117,7 +166,6 @@ get_transformation_function <- function(transformation_type) {
     stop("Choisissez \"sum\" ou \"mean\" comme argument transformation_type pour la fonction get_transformation_function().")
   }
 }
-
 
 
 get_variation_for <- function(data, variation_type, nbr_lag = 1, dimensions_to_transform = NULL, dimensions_to_exclude = NULL, add_option = FALSE, keep_prefix = FALSE) {
@@ -164,7 +212,7 @@ combine_transformed_series_with_original_data <- function(original_data, transfo
   if (add_option | keep_prefix) {
     transformed_data <- transformed_data %>%
       dplyr::mutate(dimension = paste(prefix, dimension, sep = "_")) # NB: if we modify the dimension value, it will be considered as another dimension during the join
-    if(add_option) {
+    if (add_option) {
       dimensions_to_transform <- c() # i.e. we will take all the original dimensions
     }
   }
