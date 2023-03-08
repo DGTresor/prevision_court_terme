@@ -4,7 +4,9 @@
 # Created on: 18/01/2023
 
 # libraries ------------------------------------------------------------------------------------------------------------
+library(dplyr)
 library(readr)
+library(Metrics)
 
 # dependencies
 source("./code/nonrevised_production/loaders.R", encoding = "utf-8", chdir = TRUE)
@@ -38,29 +40,34 @@ BDF_DIMENSIONS_LIST <- list(
 
 # functions to load data -----------------------------------------------------------------------------------------------
 
-pib_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {
-  file_path <- get_the_most_recent_file(folder_path, file_name)
+compta_nat_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {
+  file_path <- get_compta_nat_most_recent_file(folder_path, file_name)
   suppressMessages(data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
 
   clean_data <- data_cleaner_for_csv(data, dimensions_list_name = dimensions_list_name, list_of_dimensions = dimensions_list)
   return(clean_data)
 }
 
-get_the_most_recent_file <- function(folder_path, file_name) {
+get_compta_nat_most_recent_file <- function(folder_path, file_name) {
   message("Le chemin du dossier pointe actuellement vers base2014 ; Pensez à le changer si la base change.")
-  most_recent_folder <- get_the_most_recent_folder(folder_path)
+  most_recent_folder <- get_the_most_recent_file(folder_path)
   file_path <- file.path(most_recent_folder, file_name)
   return(file_path)
 }
 
-get_the_most_recent_folder <- function(folder_path) {
+get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
   # get all the folders' names in the folder
-  folders_names <- list.files(path = folder_path, full.names = FALSE)
+  files_names <- list.files(path = folder_path, full.names = FALSE)
+
+  # remove certain specific files if needed
+  if (!is.null(exclusion_list)) {
+    files_names <- files_names[!(files_names %in% exclusion_list)]
+  }
 
   # the current alphanumeric classification enables that the last folder is the most recent
-  most_recent_folder <- file.path(folder_path, folders_names[length(folders_names)])
+  most_recent_file <- file.path(folder_path, files_names[length(files_names)])
 
-  return(most_recent_folder)
+  return(most_recent_file)
 }
 
 load_pmi_data_from_excel_all_dimensions <- function(path_to_data, column_list, dimensions_label = NULL) {
@@ -94,26 +101,53 @@ fr_derouleur_importator <- function(path_to_climat_data, column_list, data_sourc
 
 # functions for regressions --------------------------------------------------------------------------------------------
 
-do_regressions_with_rolling_window <- function(y_var, x_var, reg_data, window_size, dimension_name) {
-  # NOTE: this function only works in the specific case of a model with a constant and one explanatory variable
+create_summary_for_several_simple_regressions <- function(y_var, list_x_var, reg_data, window_size) {
+  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  regressions_summary <- summarise_simple_regression_with_rolling_windows(y_var, list_x_var[[1]], reg_data, window_size)
+
+  for (x_var in list_x_var[2:length(list_x_var)]) {
+    regressions_summary <- regressions_summary %>%
+      dplyr::bind_rows(summarise_simple_regression_with_rolling_windows(y_var, x_var, reg_data, window_size))
+  }
+  return(regressions_summary)
+}
+
+summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL) {
+  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  # unspecific name
+  if (is.null(dimension_name)) {
+    dimension_name <- x_var
+  }
   # First occurence
   reg_data_1 <- reg_data[1:window_size,]
   reg_model <- lm(reg_data_1[[y_var]] ~ reg_data_1[[x_var]], data = reg_data_1)
-  rolling_regressions <- data.frame(constant = reg_model$coefficients[[1]],
-                                    coefficient = reg_model$coefficients[[2]],
-                                    dimension = dimension_name,
-                                    date = reg_data$date[[window_size]])
-
+  regression_summary <- data.frame(dimension = dimension_name,
+                                   date = reg_data$date[[window_size]],
+                                   constant = reg_model$coefficients[[1]],
+                                   coefficient = reg_model$coefficients[[2]],
+                                   adjusted_r_squared = summary(reg_model)$adj.r.squared,
+                                   rmse = Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
+                                   mae = Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
+  )
+  # Check if there is no rolling window
+  if (window_size == nrow(reg_data)){
+    return(regression_summary)
+  }
   # Following occurences
   for (i in (window_size + 1):nrow(reg_data)) {
     reg_data_i <- reg_data[(i - window_size + 1):i,]
     reg_model_i <- lm(reg_data_i[[y_var]] ~ reg_data_i[[x_var]], data = reg_data_i)
-    new_df <- data.frame(constant = reg_model_i$coefficients[[1]],
+    new_df <- data.frame(dimension = dimension_name,
+                         date = reg_data$date[[i]],
+                         constant = reg_model_i$coefficients[[1]],
                          coefficient = reg_model_i$coefficients[[2]],
-                         dimension = dimension_name,
-                         date = reg_data$date[[i]])
-    rolling_regressions <- rolling_regressions %>%
+                         adjusted_r_squared = summary(reg_model_i)$adj.r.squared,
+                         rmse = Metrics::rmse(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
+                         mae = Metrics::mae(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values)
+    )
+    regression_summary <- regression_summary %>%
       dplyr::bind_rows(new_df)
+    rm(reg_model_i)
   }
-  return(rolling_regressions)
+  return(regression_summary)
 }

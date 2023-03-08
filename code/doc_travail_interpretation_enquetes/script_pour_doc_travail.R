@@ -20,95 +20,105 @@ library(zoo)
 
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8")
 source("./code/data_preparator.R", encoding = "utf-8")
-# source("./code/scripts_from_prevision_production_manuf/graph_design_parameters.R", encoding = "utf-8", chdir = TRUE)
 source("./code/scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 
 # constants ------------------------------------------------------------------------------------------------------------
 
+LOAD_EXISTING_DATA <- TRUE      # if FALSE, update data
 
 # load data ------------------------------------------------------------------------------------------------------------
 
-# load("./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
+if (LOAD_EXISTING_DATA) {
+  load("./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
+} else {
+  # read data --------------------
+  pib_data <- compta_nat_loader(folder_path = PIB_DATA_FOLDER,
+                                file_name = PIB_FILE_NAME,
+                                dimensions_list = PIB_DIMENSIONS,
+                                dimensions_list_name = "default")
 
-pib_data <- pib_loader(folder_path = PIB_DATA_FOLDER,
-                       file_name = PIB_FILE_NAME,
-                       dimensions_list = PIB_DIMENSIONS,
-                       dimensions_list_name = "default")
+  pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
+                                                      column_list = PMI_DIMENSIONS_LIST) %>%
+    filter(dimension %in% c("pmi_composite", "pmi_industrie", "pmi_services"))
+  print("Dans nos fichiers, nous n'avons pas de données PIB avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
 
-pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
-                                                    column_list = PMI_DIMENSIONS_LIST) %>%
-  filter(dimension %in% c("pmi_composite", "pmi_industrie", "pmi_services"))
-print("Dans nos fichiers, nous n'avons pas de données PIB avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
+  insee_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
+                                        column_list = INSEE_DIMENSIONS_LIST,
+                                        data_source = "insee",
+                                        columns_to_import = c(1, 15, 16, 17, 19))
 
-insee_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-                                      column_list = INSEE_DIMENSIONS_LIST,
-                                      data_source = "insee",
-                                      columns_to_import = c(1, 15, 16, 17, 19))
+  # télécharger les données BdF
+  bdf_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
+                                      column_list = BDF_DIMENSIONS_LIST,
+                                      data_source = "bdf",
+                                      columns_to_import = c(1, 9, 10, 11, 12))
 
-# télécharger les données BdF
-bdf_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-                                    column_list = BDF_DIMENSIONS_LIST,
-                                    data_source = "bdf",
-                                    columns_to_import = c(1, 9, 10, 11, 12))
+  # prepare data preparation  -----------
+  pib_data <- pib_data %>%
+    get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB") %>%
+    get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB", nbr_lag = 4)
 
-# data preparation  ----------------------------------------------------------------------------------------------------
-pib_data <- pib_data %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB") %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB", nbr_lag = 4)
+  survey_data <- insee_data %>%
+    dplyr::bind_rows(pmi_data) %>%
+    dplyr::bind_rows(bdf_data)
 
-survey_data <- insee_data %>%
-  dplyr::bind_rows(pmi_data) %>%
-  dplyr::bind_rows(bdf_data)
+  survey_data_split <- survey_data %>%
+    month_to_quarter(transformation_type = "split") %>%
+    get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = c("insee_global_m1", "insee_global_m3")) %>%
+    get_variation_for(variation_type = "difference", add_option = TRUE, dimensions_to_transform = c("insee_global_m1", "insee_global_m3"))
 
-survey_data_split <- survey_data %>%
-  month_to_quarter(transformation_type = "split") %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = c("insee_global_m1", "insee_global_m3")) %>%
-  get_variation_for(variation_type = "difference", add_option = TRUE, dimensions_to_transform = c("insee_global_m1", "insee_global_m3"))
+  survey_data_mean <- survey_data %>%
+    month_to_quarter(transformation_type = "mean")
 
-survey_data_mean <- survey_data %>%
-  month_to_quarter(transformation_type = "mean")
+  survey_data_mean_vt <- survey_data_mean %>%
+    get_variation_for(variation_type = "growth_rate", add_option = TRUE, keep_prefix = TRUE)
 
-survey_data_mean_vt <- survey_data_mean %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE, keep_prefix = TRUE)
+  survey_data_mean_ga <- survey_data_mean %>%
+    get_variation_for(variation_type = "growth_rate", nbr_lag = 4, keep_prefix = TRUE)
 
-survey_data_mean_ga <- survey_data_mean %>%
-  get_variation_for(variation_type = "growth_rate", nbr_lag = 4, keep_prefix = TRUE)
+  survey_data_mean_diff <- survey_data_mean %>%
+    get_variation_for(variation_type = "difference", keep_prefix = TRUE)
 
-survey_data_mean_diff <- survey_data_mean %>%
-  get_variation_for(variation_type = "difference", keep_prefix = TRUE)
+  full_data <- pib_data %>%
+    dplyr::bind_rows(survey_data_split) %>%
+    dplyr::bind_rows(survey_data_mean_vt) %>%
+    dplyr::bind_rows(survey_data_mean_ga) %>%
+    dplyr::bind_rows(survey_data_mean_diff) %>%
+    convert_to_wide_format() %>%
+    dplyr::mutate(lead_var1_insee_global_m3 = lead(var1_insee_global_m1),
+                  lead_diff1_insee_global_m3 = lead(diff1_insee_global_m1),
+                  lead_insee_global_m1 = lead(insee_global_m1))
 
-full_data <- pib_data %>%
-  dplyr::bind_rows(survey_data_split) %>%
-  dplyr::bind_rows(survey_data_mean_vt) %>%
-  dplyr::bind_rows(survey_data_mean_ga) %>%
-  dplyr::bind_rows(survey_data_mean_diff) %>%
-  convert_to_wide_format() %>%
-  dplyr::mutate(lead_var1_insee_global_m3 = lead(var1_insee_global_m1),
-                lead_diff1_insee_global_m3 = lead(diff1_insee_global_m1),
-                lead_insee_global_m1 = lead(insee_global_m1))
+  full_data <- full_data %>%
+    dplyr::select(date, contains(c("PIB", "global", "composite"))) %>%
+    dplyr::mutate(pmi_composite_m_1 = lag(pmi_composite_m3),
+                  pmi_composite_m_2 = lag(pmi_composite_m2),
+                  bdf_global_m_1 = lag(bdf_global_m3),
+                  bdf_global_m_2 = lag(bdf_global_m2)
+    ) %>%
+    dplyr::mutate(pmi_composite_trim_formel = 1 / 9 * pmi_composite_m3 +
+      2 / 9 * pmi_composite_m2 +
+      1 / 3 * pmi_composite_m1 +
+      2 / 9 * pmi_composite_m_1 +
+      1 / 9 * pmi_composite_m_2,
+                  bdf_global_trim_formel = 1 / 9 * bdf_global_m3 +
+                    2 / 9 * bdf_global_m2 +
+                    1 / 3 * bdf_global_m1 +
+                    2 / 9 * bdf_global_m_1 +
+                    1 / 9 * bdf_global_m_2) %>%
+    dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
 
-full_data <- full_data %>%
-  dplyr::select(date, contains(c("PIB", "global", "composite"))) %>%
-  dplyr::mutate(pmi_composite_m_1 = lag(pmi_composite_m3),
-                pmi_composite_m_2 = lag(pmi_composite_m2),
-                bdf_global_m_1 = lag(bdf_global_m3),
-                bdf_global_m_2 = lag(bdf_global_m2)
-  ) %>%
-  dplyr::mutate(pmi_composite_trim_formel = 1/9 * pmi_composite_m3 + 2/9 * pmi_composite_m2 + 1/3 * pmi_composite_m1 + 2/9 * pmi_composite_m_1 + 1/9 * pmi_composite_m_2,
-                bdf_global_trim_formel = 1/9 * bdf_global_m3 + 2/9 * bdf_global_m2 + 1/3 * bdf_global_m1 + 2/9 * bdf_global_m_1 + 1/9 * bdf_global_m_2) %>%
-  dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
-
-
-# save(full_data, file = "./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
+  save(full_data, file = "./code/doc_travail_interpretation_enquetes/data_doc_travail_20230131.RData")
+}
 
 
 # analysis -------------------------------------------------------------------------------------------------------------
 
 ## Partie 0 : cut outliers --------------------------------------------
 
-# get the colors
+# Data for graph
 data_graph_evol_PIB <- full_data %>%
   dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
   dplyr::select(date, var1_PIB, var4_PIB) %>%
@@ -281,7 +291,7 @@ compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_ga_insee_pmi_bdf",
 
 ## Partie 1 : correlations --------------------------------------------
 
-subset_data <- full_data 
+subset_data <- full_data
 # %>%
 #   dplyr::select(date, var1_PIB, var4_PIB, insee_global_m1, insee_global_m3, lead_insee_global_m1, qt_insee_global,
 #                 var1_insee_global_m3, lead_var1_insee_global_m3, var1_qt_insee_global,
@@ -426,7 +436,7 @@ ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "va
 ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))) +
   aes(x = date, y = var4_PIB, color = dimension) +
   geom_line() +
-labs(title = "Evolution dans le temps de la corrélation entre les climats et le glissement annuel du PIB",
+  labs(title = "Evolution dans le temps de la corrélation entre les climats et le glissement annuel du PIB",
        subtitle = paste("Estimation roulante réalisée sur fenêtres de", WINDOW_SIZE / 4, "ans sur la période 2001T1 - 2019T4 (exclusion crise 2008-9)"),
        caption = "Source : Insee, Banque de France (BdF) et S&P") +
   my_theme() +
@@ -458,77 +468,141 @@ labs(title = "Evolution dans le temps de la corrélation entre les climats et le
 
 
 ## Partie 2 : régression du mémo --------------------------------------------
+regression_data <- subset_data %>%
+  dplyr::select(date, var1_PIB, var4_PIB, insee_global_m3, lead_insee_global_m1, bdf_global_m3, pmi_composite_m3) %>%
+  dplyr::filter(date >= lubridate::ymd("2001-01-01") & date <= lubridate::ymd("2019-10-10"))
+regression_data_vt <- regression_data %>%
+  dplyr::filter(!(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01"))))
+regression_data_ga <- regression_data_vt %>%
+  dplyr::filter(!(date %in% c(lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01"))))
+# MEMO 2019 002366 : période 1998T3-2018T4 MAIS dans nos données actuelles : PMI dispo pas avant 01/01/1999
+# Compte-tenu des études sur la période : on va prendre 2001T1-2019T4 en retirant 2008T4 et 2009T1
+#〖PIB〗_T= α+ β*I_T
+
 ### Régressions simples
+# provide statistics
+general_statistics <- regression_data_vt %>%
+  dplyr::mutate(var4_PIB = case_when(                                                 # exclure les points aberrants pour le glissement annuel du PIB
+    date %in% c(lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01")) ~ NA_real_,
+    TRUE ~ var4_PIB
+  )) %>%
+  tidyr::pivot_longer(cols = colnames(regression_data_vt)[2:length(regression_data_vt)],
+                      names_to = "dimension",
+                      values_to = "value")
+general_statistics <- general_statistics %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(mean = mean(value, na.rm = TRUE),
+                   standard_deviation = sd(value, na.rm = TRUE))
+general_statistics
 
-regression_data <- main_indices_data_thresold %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2018-10-10"))
-# période 1998T3-2018T4 comme dans MEMO 2019 002366
-# MAIS pas données PIB avant 01/01/1999 => période 1999T1 - 2018T4 que l'on pourra étendre à 1999T1 - 2019T4
+# summary of simple regressions for all indices without rolling windows
+# NOTE: if we do not want a rolling window => set the window_size to the dataframe size
+create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                              list_x_var = colnames(regression_data_vt)[!(colnames(regression_data_vt) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                              reg_data = regression_data_vt,
+                                              window_size = nrow(regression_data_vt))
+
+############ 6ème enseignement :
+# Si on utilise le dataframe subset_data en filtrant bien la période (cf. ligne ci-dessous)
+# clean_subset_data <- subset_data %>% dplyr::filter(date >= lubridate::ymd("2001-01-01") & date <= lubridate::ymd("2019-10-10")) %>% dplyr::filter(!(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01"))))
+# On trouve bien que les variables lead_insee_global_m1 (puis insee_global_m3), pmi_composite_m3, et bdf_global_m3 sont bien les plus performantes
+
+############ 7ème enseignement :
+# Si on utilise le dataframe regression_data (i.e. sans enlever la crise 2008-9) alors les R-sq ajusté sont quasiment 2 fois meilleurs
+# MAIS les RMSE et MAE sont nettement moins bons (de l'ordre de 20% plus mauvais)
+
+
+# Régressions au seuil pour calcul heuristique - sans période roulante
 #〖PIB〗_T= α+ β(I_T-seuil)
+regression_data_vt_seuil <- regression_data_vt %>%
+  dplyr::mutate(seuil_insee_global_m3 = insee_global_m3 - 100,
+                seuil_lead_insee_global_m1 = lead_insee_global_m1 - 100,
+                seuil_bdf_global_m3 = bdf_global_m3 - 100,
+                seuil_pmi_composite_m3 = pmi_composite_m3 - 50) %>%
+  dplyr::select(-c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3"))
 
-simple_model_insee_m1 <- lm(var1_PIB ~ seuil_lead_insee_global_m1, data = regression_data)
-# summary(simple_model_insee_m1) # R-sq = 0.47
-print(paste("Une variation trimestrielle nulle du PIB équivaut (selon la régression) à un climat Insee le mois m+1 du trimestre suivant à :",
-            round(100 - simple_model_insee_m1$coefficient[[1]] / simple_model_insee_m1$coefficient[[2]], 0)))
-print(paste0("Un climat Insee le mois m+1 du trimestre T+1 à 100 équivaut à une variation trimestrielle du PIB au trimestre T de : ",
-             round(simple_model_insee_m1$coefficient[[1]] * 100, 2), "%"))
-# much better than with seuil_qt_insee_global
+create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                              list_x_var = colnames(regression_data_vt_seuil)[!(colnames(regression_data_vt_seuil) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                              reg_data = regression_data_vt_seuil,
+                                              window_size = nrow(regression_data_vt_seuil)) %>%
+  dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_pib_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_pib_nulle = round(valeur_indice_pour_var_trim_pib_nulle - (constant / coefficient), 0)) %>%
+  select(dimension, var_trim_pib_pour_indice_au_seuil, valeur_indice_pour_var_trim_pib_nulle)
+# On notera que les calculs de statistiques sont exactement équivalents avec les soldes classiques et les soldes en différence à leur solde; ce qui est normal
 
-simple_model_insee_m3 <- lm(var1_PIB ~ seuil_insee_global_m3, data = regression_data)
-# summary(simple_model_insee_m3) # R-sq = 0.42
-print(paste("Une variation trimestrielle nulle du PIB équivaut (selon la régression) à un climat Insee le mois m+3 du trimestre à :",
-            round(100 - simple_model_insee_m3$coefficient[[1]] / simple_model_insee_m3$coefficient[[2]], 0)))
-print(paste0("Un climat Insee le mois m+3 du trimestre T à 100 équivaut à une variation trimestrielle du PIB au trimestre T de : ",
-             round(simple_model_insee_m3$coefficient[[1]] * 100, 2), "%"))
-
-simple_model_insee_qt <- lm(var1_PIB ~ seuil_qt_insee_global, data = regression_data)
-# summary(simple_model_insee_m3) # R-sq = 0.42
-print(paste("Une variation trimestrielle nulle du PIB équivaut (selon la régression) à un climat Insee moyen sur le trimestre de :",
-            round(100 - simple_model_insee_qt$coefficient[[1]] / simple_model_insee_qt$coefficient[[2]], 0)))
-print(paste0("Un climat Insee moyen sur le trimestre T de 100 équivaut à une variation trimestrielle du PIB au trimestre T de : ",
-             round(simple_model_insee_qt$coefficient[[1]] * 100, 2), "%"))
-
-simple_model_pmi <- lm(var1_PIB ~ seuil_qt_pmi_composite, data = regression_data)
-# summary(simple_model_pmi)
-print(paste("Une variation trimestrielle nulle du PIB équivaut (selon la régression) à un PMI composite moyen sur le trimestre de :",
-            round(50 - simple_model_pmi$coefficient[[1]] / simple_model_pmi$coefficient[[2]], 0)))
-print(paste0("Un PMI composite moyen sur le trimestre T de 50 équivaut à une variation trimestrielle du PIB au trimestre T de : ",
-             round(simple_model_pmi$coefficient[[1]] * 100, 2), "%"))
-
-simple_model_bdf <- lm(var1_PIB ~ seuil_qt_bdf_global, data = regression_data)
-# summary(simple_model_bdf)
-print(paste("Une variation trimestrielle nulle du PIB équivaut (selon la régression) à un climat BdF moyen sur le trimestre de :",
-            round(100 - simple_model_bdf$coefficient[[1]] / simple_model_bdf$coefficient[[2]], 0)))
-print(paste0("Un climat BdF moyen sur le trimestre T de 100 équivaut à une variation trimestrielle du PIB au trimestre T de : ",
-             round(simple_model_bdf$coefficient[[1]] * 100, 2), "%"))
 
 ### Régressions avec estimation roulante réalisée sur fenêtres de 10 ans
 REG_WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
-rolling_regressions <- do_regressions_with_rolling_window("var1_PIB", "seuil_insee_global_m3", regression_data, REG_WINDOW_SIZE, "insee_m3")
-rolling_regressions <- rolling_regressions %>%
-  dplyr::bind_rows(do_regressions_with_rolling_window("var1_PIB", "seuil_lead_insee_global_m1", regression_data, REG_WINDOW_SIZE, "lead_insee_m1")) %>%
-  dplyr::bind_rows(do_regressions_with_rolling_window("var1_PIB", "seuil_qt_insee_global", regression_data, REG_WINDOW_SIZE, "insee_qt")) %>%
-  dplyr::bind_rows(do_regressions_with_rolling_window("var1_PIB", "seuil_qt_pmi_composite", regression_data, REG_WINDOW_SIZE, "pmi_qt")) %>%
-  dplyr::bind_rows(do_regressions_with_rolling_window("var1_PIB", "seuil_mean_qt_pmi_composite", regression_data, REG_WINDOW_SIZE, "pmi_qt_mean")) %>%
-  dplyr::bind_rows(do_regressions_with_rolling_window("var1_PIB", "seuil_qt_bdf_global", regression_data, REG_WINDOW_SIZE, "bdf"))
-
-rolling_regressions %>%
+summary_of_rolling_regressions <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                                                                list_x_var = colnames(regression_data_vt)[!(colnames(regression_data_vt) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                                                                reg_data = regression_data_vt,
+                                                                                window_size = REG_WINDOW_SIZE)
+summary_of_rolling_regressions %>%
   dplyr::group_by(dimension) %>%
-  dplyr::summarise(constant = mean(constant) * 100,
-                   coefficient = mean(coefficient) * 100)
+  dplyr::summarise(constant = mean(constant),
+                   coefficient = mean(coefficient),
+                   adjusted_r_squared = mean(adjusted_r_squared),
+                   rmse = mean(rmse),
+                   mae = mean(mae))
+
+############ 8ème enseignement :
+# Les résultats sont différents sur période roulante et sans période roulante.
+# A l'exception du solde PMI, les RMSE et MAE sont moins bons sur période roulante que sur période complète (sauf mae pour BdF)
+# Explication : reflète perte qualité régression au cours du temps ? ou juste 10 ans pas assez pour avoir une bonne puissance statistique ?
+# TODO: investigate
+
 
 # Plotting evolution
-ggplot(rolling_regressions) +
-  aes(x = date, y = constant * 100, color = dimension) +
+ggplot(summary_of_rolling_regressions) +
+  aes(x = date, y = adjusted_r_squared, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans des R2 ajustés"))
+
+ggplot(summary_of_rolling_regressions) +
+  aes(x = date, y = rmse * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans des RMSE"))
+
+ggplot(summary_of_rolling_regressions) +
+  aes(x = date, y = mae * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans des MAE"))
+
+
+# Régressions au seuil pour calcul heuristique - avec période roulante
+summary_of_rolling_regressions_seuil <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                                                                      list_x_var = colnames(regression_data_vt_seuil)[!(colnames(regression_data_vt_seuil) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                                                                      reg_data = regression_data_vt_seuil,
+                                                                                      window_size = WINDOW_SIZE) %>%
+  dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_pib_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_pib_nulle = round(valeur_indice_pour_var_trim_pib_nulle - (constant / coefficient), 0)) %>%
+  select(date, dimension, coefficient, var_trim_pib_pour_indice_au_seuil, valeur_indice_pour_var_trim_pib_nulle)
+
+summary_of_rolling_regressions_seuil %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(coefficient = mean(coefficient),
+                   var_trim_pib_pour_indice_au_seuil = mean(var_trim_pib_pour_indice_au_seuil),
+                   valeur_indice_pour_var_trim_pib_nulle = round(mean(valeur_indice_pour_var_trim_pib_nulle), 0))
+
+# Plotting evolution
+ggplot(summary_of_rolling_regressions_seuil) +
+  aes(x = date, y = var_trim_pib_pour_indice_au_seuil, color = dimension) +
   geom_line() +
   labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans de la croissance trimestrielle du PIB compatible \navec un climat constant à son seuil"))
 
 
-rolling_regressions_coef <- rolling_regressions %>%
-  dplyr::filter(dimension != "pmi_qt_mean") %>%
+rolling_regressions_coef <- summary_of_rolling_regressions_seuil %>%
   dplyr::mutate(coefficient = case_when(
-    dimension %in% c("insee_m3", "insee_qt", "lead_insee_m1", "bdf") ~ coefficient * 4,
-    dimension == "pmi_qt" ~ coefficient * 2,
+    dimension %in% c("bdf_global_m3", "insee_global_m3", "lead_insee_global_m1") ~ coefficient * 4,
+    dimension == "pmi_composite_m3" ~ coefficient * 2,
     TRUE ~ coefficient
   ))
 
@@ -538,10 +612,14 @@ ggplot(rolling_regressions_coef) +
   labs(title = paste("Croissance associée à une haussede 4 pts des climats Insee et BdF et de 2 pts du PMI
   (estimation roulante sur ", WINDOW_SIZE / 4, "ans)"))
 
-############ 6ème enseignement :
+
+############ 8ème enseignement :
 # Pour la période 1999T1 - 2018T4, avec une estimation roulante sur 10 ans, j'arrive à reproduire les mêmes résultats mais avec
 # un décalage de +/-0,1pt. A voir si ce n'est pas dû aux outliers (pour le calcul de la constante et du coefficient).
 # Voir aussi si ça ne peut pas être à cause des données => aller chercher les données disponibles en juin 2019.
+# REPONSE : non, ce n'est pas les outliers MAIS les soldes ; puisque je ne prends pas les mêmes !!!
+# TODO: compare with and without 2008-9 crisis
+
 
 ## Partie 3 : Approche alternative à la régression -----------------------------
 # quelle valeur de climat pour une croissance nulle du PIB et quelle croissance du PIB pour un climat à son seuil
