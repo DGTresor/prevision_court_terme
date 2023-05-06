@@ -1,0 +1,273 @@
+---
+title: "Exploration des relations entre les enquêtes de conjoncture et le PIB français"
+author: lphung
+date: 13/04/2023
+output: html_document
+---
+
+```{r set-up, include = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(writexl)
+
+source("../doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
+source("../data_preparator.R", encoding = "utf-8")
+source("../scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
+
+```
+
+
+# 4. Une relation complexe entre les climats et la croissance du PIB. Une relation complexe entre les climats et la croissance du PIB (partie document de travail)
+
+## Remarques préliminaires
+
+<input type="checkbox" unchecked> Question : est-ce que la perte de pertinence des enquêtes de conjoncture s'observent aussi dans les autres pays européens ? (peut-être une première tâche pour le stagiaire) </input>
+
+
+```{r loading_data, echo = FALSE}
+load("../doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
+```
+
+## Les climats des affaires : un résumé satisfaisant de la conjoncture ?
+
+
+
+
+
+**Figure 1: Concomitances des évolutions du PIB trimestriel français et des indicateurs synthétiques en niveau centrés-réduits**
+
+L'objectif ici est d'apporter un premier aperçu de la correspondance entre le PIB et les enquêtes.
+
+```{r figure_1, echo = FALSE}
+
+# Data for graph
+## en variation trimestrielle
+data_graph_evol_PIB_climat_vt <- full_data %>%
+  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::select(date, var1_PIB, lead_insee_global_m1, qt_pmi_composite) %>%
+  tidyr::pivot_longer(cols = c("var1_PIB", "lead_insee_global_m1", "qt_pmi_composite"),
+                      names_to = "dimension",
+                      values_to = "value")
+## en glissement annuel
+data_graph_evol_PIB_climat_ga <- full_data %>%
+  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::select(date, var4_PIB, qt_insee_global, qt_bdf_global, qt_pmi_composite) %>%
+  tidyr::pivot_longer(cols = c("var4_PIB", "qt_insee_global", "qt_bdf_global", "qt_pmi_composite"),
+                      names_to = "dimension",
+                      values_to = "value")
+
+# Figure 1a Variation trimestrielle du PIB et indicateurs synthétiques centrés-réduits
+compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_var_trim_insee_pmi",
+                                          graph_folder = "./output",
+                                          insee_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "lead_insee_global_m1"),
+                                          pmi_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                          title = "Variation trimestrielle du PIB et indicateurs synthétiques centrés-réduits",
+                                          label_list = list("insee" = "Climat global de l'Insee au mois 1 du trimestre T+1",
+                                                            "pmi" = "PMI trimestriel moyen"),
+                                          reduced_centered = "manual",
+                                          graph_source = "Insee et S&P",
+                                          graph_saving = FALSE) +
+  geom_line(data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "var1_PIB"),
+            aes(x = date, y = value * 100, linetype = dimension), color = "black") +
+  scale_linetype_manual(values = "longdash",
+                        labels = "Variation trimestrielle du PIB") +
+  scale_y_continuous(sec.axis = sec_axis(~. / 100,
+                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
+  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
+
+# Figure 1b Glissement annuel du PIB et indicateurs synthétiques centrés-réduits
+compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_ga_insee_pmi_bdf",
+                                          graph_folder = "./output",
+                                          insee_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_insee_global"),
+                                          bdf_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_bdf_global"),
+                                          pmi_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                          title = "Glissement annuel du PIB et indicateurs synthétiques trimestriels moyens centrés-réduits",
+                                          label_list = list("insee" = "Climat global Insee",
+                                                            "bdf" = "Climat global Banque de France",
+                                                            "pmi" = "PMI composite"),
+                                          reduced_centered = "manual",
+                                          graph_source = "Insee, Banque de France et S&P",
+                                          graph_saving = FALSE) +
+  geom_line(data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "var4_PIB"),
+            aes(x = date, y = value * 100 - 1, linetype = dimension), color = "black") +
+  scale_linetype_manual(values = "longdash",
+                        labels = "Glissement annuel du PIB") +
+  scale_y_continuous(breaks = c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4),
+                     sec.axis = sec_axis(~(. + 1) / 100,
+                                         breaks = (c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4) + 1) / 100,
+                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
+  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
+
+# Prepare data for export
+data_for_excel_figure_1a <- data_graph_evol_PIB_climat_vt %>%
+  dplyr::filter(dimension == "var1_PIB") %>%
+  dplyr::bind_rows(concatanate_insee_pmi_bdf_data_with_one_dimension(insee_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "lead_insee_global_m1"),
+                                                                     pmi_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                                                     bdf_data = NULL,
+                                                                     reduced_centered = "manual")) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value)
+data_for_excel_figure_1a <- data_for_excel_figure_1a %>%
+  dplyr::rename(`Variation trimestrielle du PIB` = var1_PIB,
+                `Climat global de l'Insee au mois 1 du trimestre T+1` = insee,
+                `PMI trimestriel moyen` = pmi)
+
+data_for_excel_figure_1b <- data_graph_evol_PIB_climat_ga %>%
+  dplyr::filter(dimension == "var4_PIB") %>%
+  dplyr::bind_rows(concatanate_insee_pmi_bdf_data_with_one_dimension(insee_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_insee_global"),
+                                                                     bdf_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_bdf_global"),
+                                                                     pmi_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                                                     reduced_centered = "manual")) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value)
+data_for_excel_figure_1b <- data_for_excel_figure_1b %>%
+  dplyr::rename(`Glissement annuel du PIB` = var4_PIB,
+                `Climat global Insee` = insee,
+                `Climat global Banque de France` = bdf,
+                `PMI composite` = pmi)
+
+
+```
+
+
+**Figure 2: Évolutions exceptionnelles du PIB trimestriel français en 1999-2000 et durant la crise de 2008-9**
+
+L'objectif ici est d'identifier les *outliers*.
+
+```{r figure_2, echo = FALSE}
+
+# Data for graph
+data_for_excel_figure_2 <- full_data %>%
+  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::select(date, var1_PIB, var4_PIB)
+data_for_excel_figure_2 <- data_for_excel_figure_2 %>%
+  dplyr::mutate(fig_2a_borne_sup = rep(0.008588097, times = nrow(data_for_excel_figure_2)),   # les bornes correspondent à la moyenne + écart-type
+                fig_2a_borne_inf = rep(-0.001232349, times = nrow(data_for_excel_figure_2)),
+                fig_2b_borne_sup = rep(0.03003745, times = nrow(data_for_excel_figure_2)),
+                fig_2b_borne_inf = rep(0.00073243, times = nrow(data_for_excel_figure_2)))
+
+data_graph_evol_PIB <- data_for_excel_figure_2 %>%
+  dplyr::select(date, var1_PIB, var4_PIB) %>%
+  tidyr::pivot_longer(cols = c("var1_PIB", "var4_PIB"),
+                      names_to = "dimension",
+                      values_to = "value") %>%
+  dplyr::mutate(quarter = zoo::as.yearqtr(date))
+
+# Figure 2a Variation trimestrielle du PIB trimestriel français
+## bornes préalablement choisies : [-0.006;0.011]
+## 1 écart type : [-0.001232349;0.008588097] -> trop étroit => on choisit ça quand même
+## 2 écart type : [-0.006142572;0.01349832] -> pas mal
+ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
+  aes(x = quarter, y = value) +
+  geom_line(color = "darkblue") +
+  labs(title = "Variation trimestrielle du PIB trimestriel français",
+       subtitle = "Période : T1 1999 - T4 2019",
+       caption = "Source : Insee, calculs DG Trésor,
+                  Données : RD 2022T3 des comptes nationaux trimestriels") +
+  dgtresor_theme() +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02),
+                     labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
+  zoo::scale_x_yearqtr(format = "T%q %Y") +
+  geom_hline(yintercept = 0.008588097, color = "darkblue", linetype = "longdash") +
+  geom_hline(yintercept = -0.001232349, color = "darkblue", linetype = "longdash")
+
+# Figure 2b Glissement annuel du PIB trimestriel français
+## bornes préalablement choisies : [-0.001;0.031]
+## 1 écart type : [0.00073243;0.03003745] -> parfait => on choisit ça
+## 2 écart type : [-0.01392008;0.04468996] -> trop large, notamment pour la période 2000 qui n'est presque pas englobée
+ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
+  aes(x = quarter, y = value) +
+  geom_line(color = "darkorange") +
+  labs(title = "Glissement annuel du PIB trimestriel français",
+       subtitle = "Période : T1 1999 - T4 2019",
+       caption = "Source : Insee, calculs DG Trésor,
+                  Données : RD 2022T3 des comptes nationaux trimestriels") +
+  dgtresor_theme() +
+  geom_hline(yintercept = 0) +
+  scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
+                     labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
+  zoo::scale_x_yearqtr(format = "T%q %Y") +
+  geom_hline(yintercept = 0.03003745, color = "darkorange", linetype = "longdash") +
+  geom_hline(yintercept = 0.00073243, color = "darkorange", linetype = "longdash")
+
+```
+
+**Enseignement 0.1 :**
+
+- Il y a deux outliers évidents : T4 2008 et T1 2009 ;
+
+- le point T2 2008 est bas (en variation trimestrielle) mais ça devrait aller ;
+
+- les points T4 1999 et T2 2000 sont particulièrement hauts respectivement en variation trimestrielle et en glissement annuel.
+
+- **On semble apercevoir un changement de régime pré/post crise financière de 2008-2009**.
+
+```{r statistiques_descriptives_crise_2008-9, include = FALSE}
+
+# TODO : cacluler moyenne roulante sur 10 ans de la variation trimestrielle du PIB
+
+full_data %>%
+  dplyr::select(date, var1_PIB) %>%
+  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::mutate(period = case_when(
+    date <= lubridate::ymd("2008-01-01") ~ "avant 2008-9",
+    date >= lubridate::ymd("2009-04-01") ~ "après 2008-9",
+    TRUE ~ NA_character_
+  )) %>%
+  dplyr::filter(!(is.na(period))) %>%
+  dplyr::group_by(period) %>%
+  dplyr::summarise(mean = mean(var1_PIB),
+                   median = median(var1_PIB))
+
+full_data %>%
+  dplyr::select(date, var1_PIB) %>%
+  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::filter(date != lubridate::ymd("1999-10-01")) %>% # remove outlier
+  dplyr::mutate(period = case_when(
+    date <= lubridate::ymd("2008-01-01") ~ "avant 2008-9",
+    date >= lubridate::ymd("2009-04-01") ~ "après 2008-9",
+    TRUE ~ NA_character_
+  )) %>%
+  dplyr::filter(!(is.na(period))) %>%
+  dplyr::group_by(period) %>%
+  dplyr::summarise(mean = mean(var1_PIB),
+                   median = median(var1_PIB))
+
+full_data %>%
+  dplyr::select(date, var1_PIB) %>%
+  dplyr::filter(date >= lubridate::ymd("1990-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::filter(date != lubridate::ymd("1999-10-01")) %>% # remove outlier
+  dplyr::mutate(period = case_when(
+    date <= lubridate::ymd("2008-01-01") ~ "avant 2008-9",
+    date >= lubridate::ymd("2009-04-01") ~ "après 2008-9",
+    TRUE ~ NA_character_
+  )) %>%
+  dplyr::filter(!(is.na(period))) %>%
+  dplyr::group_by(period) %>%
+  dplyr::summarise(mean = mean(var1_PIB),
+                   median = median(var1_PIB))
+
+```
+
+**Enseignement 0.2 :**
+
+On a l'impression de voir deux régimes de croissance, avant et après 2008-9. La variation trimestrielle du PIB est :
+
+- **entre 2009T2-2019T4** : en moyenne de **0.33%** (médiane : 0.36%) ;
+
+- **entre 1999T1-2008T1** : en moyenne de **0.55%** (0.53% sans outlier 1999T4) et a une médiane de 0.57% (0.56% sans outlier 1999T4) ;
+
+- et entre 1990T1-2008T1 : en moyenne de 0.50% (0.48% sans outlier 1999T4) et a une médiane de  0.51% (0.51% sans outlier 1999T4).
+
+
+```{r export_data, include = FALSE}
+
+writexl::write_xlsx(list("data_figure_1a" = data_for_excel_figure_1a,
+                         "data_figure_1b" = data_for_excel_figure_1b,
+                         "data_figure_2" = data_for_excel_figure_2),
+                    path = "./output/output_for_graphs.xlsx",
+                    col_names = TRUE, format_headers = FALSE)
+
+```

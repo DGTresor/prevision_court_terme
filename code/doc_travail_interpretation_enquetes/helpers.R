@@ -9,8 +9,9 @@ library(readr)
 library(Metrics)
 
 # dependencies
-source("./code/nonrevised_production/loaders.R", encoding = "utf-8", chdir = TRUE)
-source("./code/old_scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")
+source("../nonrevised_production/loaders.R", encoding = "utf-8", chdir = TRUE)
+source("../old_scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8", chdir = TRUE)
+# chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # constants ------------------------------------------------------------------------------------------------------------
 PIB_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014"
@@ -111,6 +112,50 @@ create_summary_for_several_simple_regressions <- function(y_var, list_x_var, reg
   }
   return(regressions_summary)
 }
+
+summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL) {
+  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  # unspecific name
+  if (is.null(dimension_name)) {
+    dimension_name <- x_var
+  }
+  # First occurence
+  reg_data_1 <- reg_data[1:window_size,]
+  reg_model <- lm(reg_data_1[[y_var]] ~ reg_data_1[[x_var]], data = reg_data_1)
+  regression_summary <- data.frame(dimension = dimension_name,
+                                   date = reg_data$date[[window_size]],
+                                   constant = reg_model$coefficients[[1]],
+                                   coefficient = reg_model$coefficients[[2]],
+                                   adjusted_r_squared = summary(reg_model)$adj.r.squared,
+                                   rmse = Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
+                                   mae = Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
+  )
+  # Check if there is no rolling window
+  if (window_size == nrow(reg_data)){
+    return(regression_summary)
+  }
+  # Following occurences
+  for (i in (window_size + 1):nrow(reg_data)) {
+    reg_data_i <- reg_data[(i - window_size + 1):i,]
+    reg_model_i <- lm(reg_data_i[[y_var]] ~ reg_data_i[[x_var]], data = reg_data_i)
+    new_df <- data.frame(dimension = dimension_name,
+                         date = reg_data$date[[i]],
+                         constant = reg_model_i$coefficients[[1]],
+                         coefficient = reg_model_i$coefficients[[2]],
+                         adjusted_r_squared = summary(reg_model_i)$adj.r.squared,
+                         rmse = Metrics::rmse(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
+                         mae = Metrics::mae(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values)
+    )
+    regression_summary <- regression_summary %>%
+      dplyr::bind_rows(new_df)
+    rm(reg_model_i)
+  }
+  return(regression_summary)
+}
+
+
+
+# functions for regressions --------------------------------------------------------------------------------------------
 
 summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL) {
   # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable

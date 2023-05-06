@@ -18,7 +18,7 @@ library(lubridate)
 library(ggplot2)
 library(zoo)
 
-source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8")
+source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_preparator.R", encoding = "utf-8")
 source("./code/scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
@@ -55,7 +55,7 @@ if (LOAD_EXISTING_DATA) {
                                       data_source = "bdf",
                                       columns_to_import = c(1, 9, 10, 11, 12))
 
-  # prepare data preparation  -----------
+  # prepare data  -----------
   pib_data <- pib_data %>%
     get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB") %>%
     get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB", nbr_lag = 4)
@@ -118,176 +118,7 @@ if (LOAD_EXISTING_DATA) {
 
 ## Partie 0 : cut outliers --------------------------------------------
 
-# Data for graph
-data_graph_evol_PIB <- full_data %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
-  dplyr::select(date, var1_PIB, var4_PIB) %>%
-  tidyr::pivot_longer(cols = c("var1_PIB", "var4_PIB"),
-                      names_to = "dimension",
-                      values_to = "value") %>%
-  dplyr::mutate(quarter = zoo::as.yearqtr(date))
-
-# Graphique variation trimestrielle
-ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
-  aes(x = quarter, y = value) +
-  geom_line(color = "darkblue") +
-  labs(title = "Variation trimestrielle du PIB trimestriel français",
-       subtitle = "Période : T1 1999 - T4 2019",
-       caption = "Source : Insee, calculs DG Trésor,
-                  Données : RD 2022T3 des comptes nationaux trimestriels") +
-  dgtresor_theme() +
-  geom_hline(yintercept = 0) +
-  scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02),
-                     labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
-  zoo::scale_x_yearqtr(format = "T%q %Y") +
-  geom_hline(yintercept = 0.011, color = "darkblue", linetype = "longdash") +
-  geom_hline(yintercept = -0.006, color = "darkblue", linetype = "longdash")
-
-# Graphique glissement annuel
-ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
-  aes(x = quarter, y = value) +
-  geom_line(color = "darkorange") +
-  labs(title = "Glissement annuel du PIB trimestriel français",
-       subtitle = "Période : T1 1999 - T4 2019",
-       caption = "Source : Insee, calculs DG Trésor,
-                  Données : RD 2022T3 des comptes nationaux trimestriels") +
-  dgtresor_theme() +
-  geom_hline(yintercept = 0) +
-  scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
-                     labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
-  zoo::scale_x_yearqtr(format = "T%q %Y") +
-  geom_hline(yintercept = 0.031, color = "darkorange", linetype = "longdash") +
-  geom_hline(yintercept = -0.001, color = "darkorange", linetype = "longdash")
-
-
-############ Enseignement 0.1 :
-# Il y a deux outliers évidents : T4 2008 et T1 2009 ;
-# le point T2 2008 est bas mais ça devrait aller ;
-# le point T4 1999 est particulièrement haut
-
-full_data %>%
-  dplyr::select(date, var1_PIB) %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
-  dplyr::mutate(period = case_when(
-    date <= lubridate::ymd("2008-01-01") ~ "avant 2008-9",
-    date >= lubridate::ymd("2009-04-01") ~ "après 2008-9",
-    TRUE ~ NA_character_
-  )) %>%
-  dplyr::filter(!(is.na(period))) %>%
-  dplyr::group_by(period) %>%
-  dplyr::summarise(mean = mean(var1_PIB),
-                   median = median(var1_PIB))
-
-full_data %>%
-  dplyr::select(date, var1_PIB) %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
-  dplyr::filter(date != lubridate::ymd("1999-10-01")) %>% # remove outlier
-  dplyr::mutate(period = case_when(
-    date <= lubridate::ymd("2008-01-01") ~ "avant 2008-9",
-    date >= lubridate::ymd("2009-04-01") ~ "après 2008-9",
-    TRUE ~ NA_character_
-  )) %>%
-  dplyr::filter(!(is.na(period))) %>%
-  dplyr::group_by(period) %>%
-  dplyr::summarise(mean = mean(var1_PIB),
-                   median = median(var1_PIB))
-
-full_data %>%
-  dplyr::select(date, var1_PIB) %>%
-  dplyr::filter(date >= lubridate::ymd("1990-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
-  dplyr::filter(date != lubridate::ymd("1999-10-01")) %>% # remove outlier
-  dplyr::mutate(period = case_when(
-    date <= lubridate::ymd("2008-01-01") ~ "avant 2008-9",
-    date >= lubridate::ymd("2009-04-01") ~ "après 2008-9",
-    TRUE ~ NA_character_
-  )) %>%
-  dplyr::filter(!(is.na(period))) %>%
-  dplyr::group_by(period) %>%
-  dplyr::summarise(mean = mean(var1_PIB),
-                   median = median(var1_PIB))
-
-############ Enseignement 0.2 :
-# On a l'impression de voir deux régimes de croissance, avant et après 2008-9.
-# entre 1999T1-2008T1 : 0.55% (et 0.53% sans outlier 1999T4) et MEDIANE : 0.57% (et 0.56% sans outlier 1999T4)
-# entre 2009T2-2019T4 : 0.33% et MEDIANE : 0.36%
-# et entre 1990T1-2008T1 : 0.50% (et 0.48% sans outlier 1999T4) et MEDIANE : 0.51% (0.51% sans outlier 1999T4)
-
-# TODO : cacluler moyenne roulante sur 10 ans de la variation trimestrielle du PIB
-# First occurence
-# WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
-# first_correlations <- cor(main_indices_data_reduced[1:WINDOW_SIZE,] %>% dplyr::select(-date), method = "pearson")[, c("var1_PIB", "var4_PIB")]
-# rolling_correlations <- data.frame(first_correlations,
-#                                    dimension = row.names(first_correlations),
-#                                    date = rep(main_indices_data_reduced$date[[WINDOW_SIZE]], 7))
-#
-# # Following occurences
-# for (i in (WINDOW_SIZE + 1):nrow(main_indices_data_reduced)) {
-#   correlations <- cor(main_indices_data_reduced[(i - WINDOW_SIZE + 1):i,] %>% dplyr::select(-date), method = "pearson")[, c("var1_PIB", "var4_PIB")]
-#   new_df <- data.frame(correlations,
-#                        dimension = row.names(correlations),
-#                        date = rep(main_indices_data_reduced$date[[i]], 7))
-#   rolling_correlations <- rolling_correlations %>%
-#     dplyr::bind_rows(new_df)
-# }
-
-
-# Plot PIB et climats
-## en variation trimestrielle
-data_graph_evol_PIB_climat_vt <- full_data %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
-  dplyr::select(date, var1_PIB, lead_insee_global_m1, qt_pmi_composite) %>%
-  tidyr::pivot_longer(cols = c("var1_PIB", "lead_insee_global_m1", "qt_pmi_composite"),
-                      names_to = "dimension",
-                      values_to = "value")
-
-data_graph_evol_PIB_climat_ga <- full_data %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
-  dplyr::select(date, var4_PIB, qt_insee_global, qt_bdf_global, qt_pmi_composite) %>%
-  tidyr::pivot_longer(cols = c("var4_PIB", "qt_insee_global", "qt_bdf_global", "qt_pmi_composite"),
-                      names_to = "dimension",
-                      values_to = "value")
-
-compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_var_trim_insee_pmi",
-                                          graph_folder = "./output",
-                                          insee_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "lead_insee_global_m1"),
-                                          pmi_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "qt_pmi_composite"),
-                                          title = "Variation trimestrielle du PIB et indicateurs synthétiques centrés-réduits",
-                                          label_list = list("insee" = "Climat global de l'Insee au mois 1 du trimestre T+1",
-                                                            "pmi" = "PMI trimestriel moyen"),
-                                          reduced_centered = "manual",
-                                          graph_source = "Insee et S&P",
-                                          graph_saving = FALSE) +
-  geom_line(data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "var1_PIB"),
-            aes(x = date, y = value * 100, linetype = dimension), color = "black") +
-  scale_linetype_manual(values = "longdash",
-                        labels = "Variation trimestrielle du PIB") +
-  scale_y_continuous(sec.axis = sec_axis(~. / 100,
-                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
-  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
-
-
-compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_ga_insee_pmi_bdf",
-                                          graph_folder = "./output",
-                                          insee_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_insee_global"),
-                                          bdf_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_bdf_global"),
-                                          pmi_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_pmi_composite"),
-                                          title = "Glissement annuel du PIB et indicateurs synthétiques trimestriels moyens centrés-réduits",
-                                          label_list = list("insee" = "Climat global Insee",
-                                                            "bdf" = "Climat global Banque de France",
-                                                            "pmi" = "PMI composite"),
-                                          reduced_centered = "manual",
-                                          graph_source = "Insee, Banque de France et S&P",
-                                          graph_saving = FALSE) +
-  geom_line(data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "var4_PIB"),
-            aes(x = date, y = value * 100 - 1, linetype = dimension), color = "black") +
-  scale_linetype_manual(values = "longdash",
-                        labels = "Glissement annuel du PIB") +
-  scale_y_continuous(breaks = c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4),
-                     sec.axis = sec_axis(~(. + 1) / 100,
-                                         breaks = (c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4) + 1) / 100,
-                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
-  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
-
+# See figures_doc_travail.Rmd
 
 ## Partie 1 : correlations --------------------------------------------
 
@@ -468,11 +299,12 @@ ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "va
 
 
 ## Partie 2 : régression du mémo --------------------------------------------
-regression_data <- subset_data %>%
+regression_data <- full_data %>%
   dplyr::select(date, var1_PIB, var4_PIB, insee_global_m3, lead_insee_global_m1, bdf_global_m3, pmi_composite_m3) %>%
   dplyr::filter(date >= lubridate::ymd("2001-01-01") & date <= lubridate::ymd("2019-10-10"))
 regression_data_vt <- regression_data %>%
   dplyr::filter(!(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01"))))
+
 regression_data_ga <- regression_data_vt %>%
   dplyr::filter(!(date %in% c(lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01"))))
 # MEMO 2019 002366 : période 1998T3-2018T4 MAIS dans nos données actuelles : PMI dispo pas avant 01/01/1999
@@ -480,7 +312,7 @@ regression_data_ga <- regression_data_vt %>%
 #〖PIB〗_T= α+ β*I_T
 
 ### Régressions simples
-# provide statistics
+# provide statistics --------------------------------
 general_statistics <- regression_data_vt %>%
   dplyr::mutate(var4_PIB = case_when(                                                 # exclure les points aberrants pour le glissement annuel du PIB
     date %in% c(lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01")) ~ NA_real_,
@@ -489,12 +321,66 @@ general_statistics <- regression_data_vt %>%
   tidyr::pivot_longer(cols = colnames(regression_data_vt)[2:length(regression_data_vt)],
                       names_to = "dimension",
                       values_to = "value")
-general_statistics <- general_statistics %>%
+
+simple_general_statistics <- general_statistics %>%
   dplyr::group_by(dimension) %>%
   dplyr::summarise(mean = mean(value, na.rm = TRUE),
                    standard_deviation = sd(value, na.rm = TRUE))
-general_statistics
+simple_general_statistics
 
+# provide rolling general statistiques
+# First occurence
+PERIOD_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
+NBR_DIMENSION <- length(unique(general_statistics$dimension))
+WINDOW_SIZE <- PERIOD_SIZE * NBR_DIMENSION
+general_statistics <- general_statistics %>%
+  dplyr::arrange(date)
+first_statistics <- general_statistics[1:WINDOW_SIZE,] %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(mean = mean(value, na.rm = TRUE),
+                   standard_deviation = sd(value, na.rm = TRUE))
+
+rolling_statistics <- data.frame(first_statistics,
+                                 date = rep(general_statistics$date[[WINDOW_SIZE]], NBR_DIMENSION))
+
+# Following occurences
+for (i in seq(WINDOW_SIZE + NBR_DIMENSION, nrow(general_statistics), by = NBR_DIMENSION)) {
+  statistics <- general_statistics[(i - WINDOW_SIZE + 1):i,] %>%
+    dplyr::group_by(dimension) %>%
+    dplyr::summarise(mean = mean(value, na.rm = TRUE),
+                     standard_deviation = sd(value, na.rm = TRUE))
+  new_df <- data.frame(statistics,
+                       date = rep(general_statistics$date[[i]], NBR_DIMENSION))
+  rolling_statistics <- rolling_statistics %>%
+    dplyr::bind_rows(new_df)
+}
+
+# plotting evolution of summary statistics
+ggplot(rolling_statistics %>% dplyr::filter(dimension %in% c("bdf_global_m3", "insee_global_m3", "lead_insee_global_m1", "pmi_composite_m3"))) +
+  aes(x = date, y = mean, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", PERIOD_SIZE / 4, "ans de la moyenne des variables"))
+
+ggplot(rolling_statistics %>% dplyr::filter(dimension %in% c("var1_PIB", "var4_PIB"))) + # FOCUS sur var1_PIB pour bien voir la baisse
+  aes(x = date, y = mean * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", PERIOD_SIZE / 4, "ans de la moyenne des variables"))
+
+ggplot(rolling_statistics %>% dplyr::filter(dimension %in% c("bdf_global_m3", "insee_global_m3", "lead_insee_global_m1", "pmi_composite_m3"))) +
+  aes(x = date, y = standard_deviation, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", PERIOD_SIZE / 4, "ans de l'écart-type des variables"))
+
+ggplot(rolling_statistics %>% dplyr::filter(dimension %in% c("var1_PIB", "var4_PIB"))) +
+  aes(x = date, y = standard_deviation * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", PERIOD_SIZE / 4, "ans de l'écart-type des variables"))
+
+############ 5ème bis enseignement :
+# baisse au cours du temps moyenne du taux de croissance et de la volatilité du PIB
+# TODO: check évol constante du modèle du coup qui doit aussi baisser // correspond à la baisse des indices ??
+
+# regressions ------------------------------------------------------------
 # summary of simple regressions for all indices without rolling windows
 # NOTE: if we do not want a rolling window => set the window_size to the dataframe size
 create_summary_for_several_simple_regressions(y_var = "var1_PIB",
@@ -552,32 +438,36 @@ summary_of_rolling_regressions %>%
 ############ 8ème enseignement :
 # Les résultats sont différents sur période roulante et sans période roulante.
 # A l'exception du solde PMI, les RMSE et MAE sont moins bons sur période roulante que sur période complète (sauf mae pour BdF)
-# Explication : reflète perte qualité régression au cours du temps ? ou juste 10 ans pas assez pour avoir une bonne puissance statistique ?
-# TODO: investigate
+# Explication : reflète ou juste 10 ans pas assez pour avoir une bonne puissance statistique ?
+# ou la perte de qualité de la régression au cours du temps sachant que les RMSE et MAE ont tendance à augmenter jusqu'en 2018
+# TODO: investigate + CHECK pourquoi le R2 diminue au cours du temps mais la qualité de régression s'améliore
 
 
 # Plotting evolution
 ggplot(summary_of_rolling_regressions) +
   aes(x = date, y = adjusted_r_squared, color = dimension) +
   geom_line() +
-  labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans des R2 ajustés"))
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des R2 ajustés"))
 
 ggplot(summary_of_rolling_regressions) +
   aes(x = date, y = rmse * 100, color = dimension) +
   geom_line() +
-  labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans des RMSE"))
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des RMSE"))
 
 ggplot(summary_of_rolling_regressions) +
   aes(x = date, y = mae * 100, color = dimension) +
   geom_line() +
-  labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans des MAE"))
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des MAE"))
 
+############ 8ème bis enseignement :
+# On a l'impression que les RMSE et MAE augmentent légèrement au cours du temps, jusqu'en 2018 pour chuter brusquement puis revenir à des valeurs équivalentes
+# TODO: investigate why
 
 # Régressions au seuil pour calcul heuristique - avec période roulante
 summary_of_rolling_regressions_seuil <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
                                                                                       list_x_var = colnames(regression_data_vt_seuil)[!(colnames(regression_data_vt_seuil) %in% c("date", "var1_PIB", "var4_PIB"))],
                                                                                       reg_data = regression_data_vt_seuil,
-                                                                                      window_size = WINDOW_SIZE) %>%
+                                                                                      window_size = REG_WINDOW_SIZE) %>%
   dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
                 valeur_indice_pour_var_trim_pib_nulle = case_when(
                   stringr::str_detect(dimension, "pmi") ~ 50,
@@ -596,7 +486,7 @@ summary_of_rolling_regressions_seuil %>%
 ggplot(summary_of_rolling_regressions_seuil) +
   aes(x = date, y = var_trim_pib_pour_indice_au_seuil, color = dimension) +
   geom_line() +
-  labs(title = paste("Estimation roulante sur ", WINDOW_SIZE / 4, "ans de la croissance trimestrielle du PIB compatible \navec un climat constant à son seuil"))
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans de la croissance trimestrielle du PIB compatible \navec un climat constant à son seuil"))
 
 
 rolling_regressions_coef <- summary_of_rolling_regressions_seuil %>%
@@ -609,20 +499,79 @@ rolling_regressions_coef <- summary_of_rolling_regressions_seuil %>%
 ggplot(rolling_regressions_coef) +
   aes(x = date, y = coefficient * 100, color = dimension) +
   geom_line() +
-  labs(title = paste("Croissance associée à une haussede 4 pts des climats Insee et BdF et de 2 pts du PMI
-  (estimation roulante sur ", WINDOW_SIZE / 4, "ans)"))
+  labs(title = paste("Croissance associée à une hausse de 4 pts des climats Insee et BdF et de 2 pts du PMI
+  (estimation roulante sur", REG_WINDOW_SIZE / 4, "ans)"))
 
 
-############ 8ème enseignement :
+############ 9ème enseignement :
 # Pour la période 1999T1 - 2018T4, avec une estimation roulante sur 10 ans, j'arrive à reproduire les mêmes résultats mais avec
 # un décalage de +/-0,1pt. A voir si ce n'est pas dû aux outliers (pour le calcul de la constante et du coefficient).
 # Voir aussi si ça ne peut pas être à cause des données => aller chercher les données disponibles en juin 2019.
 # REPONSE : non, ce n'est pas les outliers MAIS les soldes ; puisque je ne prends pas les mêmes !!!
-# TODO: compare with and without 2008-9 crisis
+
+
+# Régressions au seuil pour calcul heuristique  - sans période roulante - 2001 T1 - 2008 T3
+regression_data_vt_seuil_pre2008 <- regression_data_vt %>%
+  dplyr::mutate(seuil_insee_global_m3 = insee_global_m3 - 100,
+                seuil_lead_insee_global_m1 = lead_insee_global_m1 - 100,
+                seuil_bdf_global_m3 = bdf_global_m3 - 100,
+                seuil_pmi_composite_m3 = pmi_composite_m3 - 50) %>%
+  dplyr::select(-c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
+  dplyr::filter(date <= lubridate::ymd("2008-07-01"))
+
+create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                              list_x_var = colnames(regression_data_vt_seuil_pre2008)[!(colnames(regression_data_vt_seuil_pre2008) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                              reg_data = regression_data_vt_seuil_pre2008,
+                                              window_size = nrow(regression_data_vt_seuil_pre2008)) %>%
+  dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_pib_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_pib_nulle = round(valeur_indice_pour_var_trim_pib_nulle - (constant / coefficient), 0)) %>%
+  select(dimension, var_trim_pib_pour_indice_au_seuil, valeur_indice_pour_var_trim_pib_nulle)
+
+
+# Régressions au seuil pour calcul heuristique - sans période roulante - 2011 T1 - 2019 T4
+regression_data_vt_seuil_post2009 <- regression_data_vt %>%
+  dplyr::mutate(seuil_insee_global_m3 = insee_global_m3 - 100,
+                seuil_lead_insee_global_m1 = lead_insee_global_m1 - 100,
+                seuil_bdf_global_m3 = bdf_global_m3 - 100,
+                seuil_pmi_composite_m3 = pmi_composite_m3 - 50) %>%
+  dplyr::select(-c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
+  dplyr::filter(date >= lubridate::ymd("2011-01-01"))
+
+create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                              list_x_var = colnames(regression_data_vt_seuil_post2009)[!(colnames(regression_data_vt_seuil_post2009) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                              reg_data = regression_data_vt_seuil_post2009,
+                                              window_size = nrow(regression_data_vt_seuil_post2009)) %>%
+  dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_pib_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_pib_nulle = round(valeur_indice_pour_var_trim_pib_nulle - (constant / coefficient), 0)) %>%
+  select(dimension, var_trim_pib_pour_indice_au_seuil, valeur_indice_pour_var_trim_pib_nulle)
+
+# TODO : Essayer de comprendre pourquoi ça n’est pas plus haut avant 2008 par rapport à après. Le après est tiré vers le haut par la période 2017-2019 ?
+# Explication probable : valeurs relativement basses en 2001-2002 => tire la moyenne pré-2008 à la baisse
+# => il faudrait seulement virer les outliers mais pas toute l’année 2001
+# CCL : problème = petit échantillon => grande volatilité
 
 
 ## Partie 3 : Approche alternative à la régression -----------------------------
 # quelle valeur de climat pour une croissance nulle du PIB et quelle croissance du PIB pour un climat à son seuil
+
+## 1. Approche graphique: A LA FIN -----------------------
+
+## 2. régression logit ? // Quelle variation du PIB la plus probable pour un PMI à 50 et un climat à 100 ? // climat le plus probable pour une croissance à 0%
+## Estimation changement de régime ? avant-après 2008-9 voire 2020-2021 ?
+
+
+# TODO : check sensibilité de la croissance au climat : regarder non-linéarité
+
+
+##############   A LA FIN ----------------------------------------------------------------------------------------------
 
 ## 1. Approche graphique:
 full_sample_graphs <- main_indices_data %>%
@@ -637,6 +586,34 @@ sample_without_outliers_graphs_ga <- main_indices_data %>%
   dplyr::filter(date >= lubridate::ymd("2001-01-01") &
                   date <= lubridate::ymd("2019-10-01") &
                   !(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01"), lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01"))))
+
+
+### TEST
+proba_vt_pib_lead_insee_global <- sample_without_outliers_graphs_vt %>%
+  dplyr::select(var1_PIB, lead_insee_global_m1) %>%
+  dplyr::mutate(lead_insee_global_m1 = round(lead_insee_global_m1, digits = 0)) %>%
+  dplyr::arrange(lead_insee_global_m1)
+proba_vt_pib_lead_insee_global <- proba_vt_pib_lead_insee_global %>%
+  dplyr::group_by(lead_insee_global_m1) %>%
+  dplyr::mutate(count = length(var1_PIB),
+                positif = ifelse(var1_PIB > 0, 1, 0)) %>%
+  dplyr::summarise(count = mean(count),
+                   nbr_positif = sum(positif))
+proba_vt_pib_lead_insee_global <- proba_vt_pib_lead_insee_global %>%
+  dplyr::mutate(part_positif = nbr_positif / count * 100,
+                part_negatif = 100 - part_positif) %>%
+  dplyr::select(lead_insee_global_m1, part_positif, part_negatif) %>%
+  tidyr::pivot_longer(cols = c(part_positif, part_negatif),
+                      values_to = "value",
+                      names_to = "dimension")
+
+ggplot(data = proba_vt_pib_lead_insee_global) +
+  aes(x = lead_insee_global_m1, y = value, fill = dimension) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(breaks = c("part_negatif", "part_positif"),
+                    values = c("red", "green"))
+
+# TODO : faire des groupes de 5
 
 ### a. variation trimestrielle
 # PMI - full sample
@@ -879,10 +856,3 @@ ggplot(data = sample_without_outliers_graphs_ga) +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 0.1, decimal.mark = ","))
-
-
-## 2. régression logit ? // Quelle variation du PIB la plus probable pour un PMI à 50 et un climat à 100 ? // climat le plus probable pour une croissance à 0%
-## Estimation changement de régime ? avant-après 2008-9 voire 2020-2021 ?
-
-
-# TODO : check sensibilité de la croissance au climat : regarder non-linéarité
