@@ -3,8 +3,6 @@
 # Created by: lphung
 # Created on: 18/01/2023
 
-# TODO : mettre le tout dans un .Rmd
-
 # clean environment ----------------------------------------------------------------------------------------------------
 rm(list = ls())
 
@@ -300,7 +298,9 @@ ggplot(rolling_correlations %>% dplyr::filter(!(dimension %in% c("var1_PIB", "va
 
 ## Partie 2 : régression du mémo --------------------------------------------
 regression_data <- full_data %>%
-  dplyr::select(date, var1_PIB, var4_PIB, insee_global_m3, lead_insee_global_m1, bdf_global_m3, pmi_composite_m3) %>%
+  dplyr::select(date, PIB, var1_PIB, var4_PIB, insee_global_m3, lead_insee_global_m1, bdf_global_m3, pmi_composite_m3
+                #,qt_pmi_composite, pmi_composite_trim_formel, qt_bdf_global, qt_insee_global,bdf_global_trim_formel,
+  ) %>%
   dplyr::filter(date >= lubridate::ymd("2001-01-01") & date <= lubridate::ymd("2019-10-10"))
 regression_data_vt <- regression_data %>%
   dplyr::filter(!(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01"))))
@@ -314,6 +314,7 @@ regression_data_ga <- regression_data_vt %>%
 ### Régressions simples
 # provide statistics --------------------------------
 general_statistics <- regression_data_vt %>%
+  dplyr::select(-PIB) %>%
   dplyr::mutate(var4_PIB = case_when(                                                 # exclure les points aberrants pour le glissement annuel du PIB
     date %in% c(lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01")) ~ NA_real_,
     TRUE ~ var4_PIB
@@ -384,18 +385,21 @@ ggplot(rolling_statistics %>% dplyr::filter(dimension %in% c("var1_PIB", "var4_P
 # summary of simple regressions for all indices without rolling windows
 # NOTE: if we do not want a rolling window => set the window_size to the dataframe size
 create_summary_for_several_simple_regressions(y_var = "var1_PIB",
-                                              list_x_var = colnames(regression_data_vt)[!(colnames(regression_data_vt) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                              list_x_var = colnames(regression_data_vt)[!(colnames(regression_data_vt) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
                                               reg_data = regression_data_vt,
                                               window_size = nrow(regression_data_vt))
 
 ############ 6ème enseignement :
 # Si on utilise le dataframe subset_data en filtrant bien la période (cf. ligne ci-dessous)
 # clean_subset_data <- subset_data %>% dplyr::filter(date >= lubridate::ymd("2001-01-01") & date <= lubridate::ymd("2019-10-10")) %>% dplyr::filter(!(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01"))))
-# On trouve bien que les variables lead_insee_global_m1 (puis insee_global_m3), pmi_composite_m3, et bdf_global_m3 sont bien les plus performantes
+# On trouve bien que les variables lead_insee_global_m1 (puis insee_global_m3), pmi_composite_m3, et bdf_global_m3 sont bien les plus performantes QUAND on compare aux variables trimestrialisées
 
 ############ 7ème enseignement :
 # Si on utilise le dataframe regression_data (i.e. sans enlever la crise 2008-9) alors les R-sq ajusté sont quasiment 2 fois meilleurs
 # MAIS les RMSE et MAE sont nettement moins bons (de l'ordre de 20% plus mauvais)
+
+############ 8ème enseignement :
+# les résultats sont de loin les meilleurs pour le PMI (vs. Insee et BdF)
 
 
 # Régressions au seuil pour calcul heuristique - sans période roulante
@@ -408,7 +412,7 @@ regression_data_vt_seuil <- regression_data_vt %>%
   dplyr::select(-c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3"))
 
 create_summary_for_several_simple_regressions(y_var = "var1_PIB",
-                                              list_x_var = colnames(regression_data_vt_seuil)[!(colnames(regression_data_vt_seuil) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                              list_x_var = colnames(regression_data_vt_seuil)[!(colnames(regression_data_vt_seuil) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
                                               reg_data = regression_data_vt_seuil,
                                               window_size = nrow(regression_data_vt_seuil)) %>%
   dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
@@ -424,7 +428,7 @@ create_summary_for_several_simple_regressions(y_var = "var1_PIB",
 ### Régressions avec estimation roulante réalisée sur fenêtres de 10 ans
 REG_WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
 summary_of_rolling_regressions <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
-                                                                                list_x_var = colnames(regression_data_vt)[!(colnames(regression_data_vt) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                                                                list_x_var = colnames(regression_data_vt)[!(colnames(regression_data_vt) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
                                                                                 reg_data = regression_data_vt,
                                                                                 window_size = REG_WINDOW_SIZE)
 summary_of_rolling_regressions %>%
@@ -435,13 +439,15 @@ summary_of_rolling_regressions %>%
                    rmse = mean(rmse),
                    mae = mean(mae))
 
-############ 8ème enseignement :
+############ 9ème enseignement :
+# les résultats restent de loin les meilleurs pour le PMI (vs. Insee et BdF)
+
+############ 10ème enseignement :
 # Les résultats sont différents sur période roulante et sans période roulante.
 # A l'exception du solde PMI, les RMSE et MAE sont moins bons sur période roulante que sur période complète (sauf mae pour BdF)
-# Explication : reflète ou juste 10 ans pas assez pour avoir une bonne puissance statistique ?
+# Explication : reflète juste que 10 ans pas assez pour avoir une bonne puissance statistique ?
 # ou la perte de qualité de la régression au cours du temps sachant que les RMSE et MAE ont tendance à augmenter jusqu'en 2018
-# TODO: investigate + CHECK pourquoi le R2 diminue au cours du temps mais la qualité de régression s'améliore
-
+# TODO: investigate + CHECK pourquoi le R2 diminue au cours du temps et la qualité de régression se dégrade
 
 # Plotting evolution
 ggplot(summary_of_rolling_regressions) +
@@ -459,13 +465,13 @@ ggplot(summary_of_rolling_regressions) +
   geom_line() +
   labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des MAE"))
 
-############ 8ème bis enseignement :
+############ 10ème bis enseignement :
 # On a l'impression que les RMSE et MAE augmentent légèrement au cours du temps, jusqu'en 2018 pour chuter brusquement puis revenir à des valeurs équivalentes
 # TODO: investigate why
 
 # Régressions au seuil pour calcul heuristique - avec période roulante
 summary_of_rolling_regressions_seuil <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
-                                                                                      list_x_var = colnames(regression_data_vt_seuil)[!(colnames(regression_data_vt_seuil) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                                                                      list_x_var = colnames(regression_data_vt_seuil)[!(colnames(regression_data_vt_seuil) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
                                                                                       reg_data = regression_data_vt_seuil,
                                                                                       window_size = REG_WINDOW_SIZE) %>%
   dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
@@ -503,7 +509,7 @@ ggplot(rolling_regressions_coef) +
   (estimation roulante sur", REG_WINDOW_SIZE / 4, "ans)"))
 
 
-############ 9ème enseignement :
+############ 11ème enseignement :
 # Pour la période 1999T1 - 2018T4, avec une estimation roulante sur 10 ans, j'arrive à reproduire les mêmes résultats mais avec
 # un décalage de +/-0,1pt. A voir si ce n'est pas dû aux outliers (pour le calcul de la constante et du coefficient).
 # Voir aussi si ça ne peut pas être à cause des données => aller chercher les données disponibles en juin 2019.
@@ -516,7 +522,7 @@ regression_data_vt_seuil_pre2008 <- regression_data_vt %>%
                 seuil_lead_insee_global_m1 = lead_insee_global_m1 - 100,
                 seuil_bdf_global_m3 = bdf_global_m3 - 100,
                 seuil_pmi_composite_m3 = pmi_composite_m3 - 50) %>%
-  dplyr::select(-c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
+  dplyr::select(-c("PIB","insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
   dplyr::filter(date <= lubridate::ymd("2008-07-01"))
 
 create_summary_for_several_simple_regressions(y_var = "var1_PIB",
@@ -538,7 +544,7 @@ regression_data_vt_seuil_post2009 <- regression_data_vt %>%
                 seuil_lead_insee_global_m1 = lead_insee_global_m1 - 100,
                 seuil_bdf_global_m3 = bdf_global_m3 - 100,
                 seuil_pmi_composite_m3 = pmi_composite_m3 - 50) %>%
-  dplyr::select(-c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
+  dplyr::select(-c("PIB", "insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
   dplyr::filter(date >= lubridate::ymd("2011-01-01"))
 
 create_summary_for_several_simple_regressions(y_var = "var1_PIB",
@@ -557,6 +563,55 @@ create_summary_for_several_simple_regressions(y_var = "var1_PIB",
 # Explication probable : valeurs relativement basses en 2001-2002 => tire la moyenne pré-2008 à la baisse
 # => il faudrait seulement virer les outliers mais pas toute l’année 2001
 # CCL : problème = petit échantillon => grande volatilité
+
+
+
+############ COMPARER GLISSEMENT ANNUEL ET VARIATION TRIMESTRIELLE POUR ESTIMAITON PIB
+
+## TODO: faire avec estimation roulante --> pour l'instant, plus facile de faire avec estimation simple CAR sinon il faudrait modifier la fonction summarise_simple_regression_with_rolling_windows
+## TODO: en prenant en compte les dates de début et de fin ainsi que les dates à éviter
+### Régressions avec estimation sur la période entière
+REG_WINDOW_SIZE <- nrow(regression_data_ga) # 10 * 4 # ATTENTION, en nombre de trimestres !!!
+
+# Résultats pour variation trim
+summary_of_rolling_regressions_vt_period_ga <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                                                                list_x_var = colnames(regression_data_ga)[!(colnames(regression_data_ga) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
+                                                                                reg_data = regression_data_ga,
+                                                                                window_size = REG_WINDOW_SIZE)
+summary_of_rolling_regressions_vt_period_ga %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(constant = mean(constant),
+                   coefficient = mean(coefficient),
+                   adjusted_r_squared = mean(adjusted_r_squared),
+                   rmse = mean(rmse),
+                   mae = mean(mae))
+
+# Résultats pour glissement annuel
+# summary_of_rolling_regressions_ga_period_ga <- create_summary_for_several_simple_regressions(y_var = "var4_PIB",
+#                                                                                 list_x_var = colnames(regression_data_ga)[!(colnames(regression_data_ga) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
+#                                                                                 reg_data = regression_data_ga,
+#                                                                                 window_size = REG_WINDOW_SIZE)
+# summary_of_rolling_regressions_ga_period_ga %>%
+#   dplyr::group_by(dimension) %>%
+#   dplyr::summarise(constant = mean(constant),
+#                    coefficient = mean(coefficient),
+#                    adjusted_r_squared = mean(adjusted_r_squared),
+#                    rmse = mean(rmse),
+#                    mae = mean(mae))
+
+create_summary_for_several_simple_regressions_to_estimate_quarterly_variation_of_GDP_with_ga(y_var = "var4_PIB",
+                                                                                             list_x_var = colnames(regression_data_ga)[!(colnames(regression_data_ga) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
+                                                                                             reg_data = regression_data_ga)
+
+############ 12ème enseignement :
+# Les résultats des RMSE et MAE pour l'estimation avec le v.t. du PIB sont assez similaires en estimation roulante et estimation
+# complète (moins bon en estimation roulante d'environ 0.0001).
+# Les résultats des RMSE et MAE sont nettement meilleurs pour l'estimation directe avec le v.t. du PIB qu'en passant par le g.a.
+
+
+
+
+
 
 
 ## Partie 3 : Approche alternative à la régression -----------------------------

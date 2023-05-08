@@ -102,19 +102,20 @@ fr_derouleur_importator <- function(path_to_climat_data, column_list, data_sourc
 
 # functions for regressions --------------------------------------------------------------------------------------------
 
-create_summary_for_several_simple_regressions <- function(y_var, list_x_var, reg_data, window_size) {
+create_summary_for_several_simple_regressions <- function(y_var, list_x_var, reg_data, window_size, for_ga = FALSE) {
   # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
-  regressions_summary <- summarise_simple_regression_with_rolling_windows(y_var, list_x_var[[1]], reg_data, window_size)
+  regressions_summary <- summarise_simple_regression_with_rolling_windows(y_var, list_x_var[[1]], reg_data, window_size, for_ga)
 
   for (x_var in list_x_var[2:length(list_x_var)]) {
     regressions_summary <- regressions_summary %>%
-      dplyr::bind_rows(summarise_simple_regression_with_rolling_windows(y_var, x_var, reg_data, window_size))
+      dplyr::bind_rows(summarise_simple_regression_with_rolling_windows(y_var, x_var, reg_data, window_size, for_ga))
   }
   return(regressions_summary)
 }
 
-summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL) {
+summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, for_ga = FALSE, dimension_name = NULL) {
   # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  # TODO: make this function works when we want to compare the performance with glissement annuel and not directly with the quarterly variation
   # unspecific name
   if (is.null(dimension_name)) {
     dimension_name <- x_var
@@ -122,16 +123,22 @@ summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_d
   # First occurence
   reg_data_1 <- reg_data[1:window_size,]
   reg_model <- lm(reg_data_1[[y_var]] ~ reg_data_1[[x_var]], data = reg_data_1)
+  if (for_ga) {
+
+  } else {
+    reg_model_rmse <- Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
+    reg_model_mae <- Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
+  }
   regression_summary <- data.frame(dimension = dimension_name,
                                    date = reg_data$date[[window_size]],
                                    constant = reg_model$coefficients[[1]],
                                    coefficient = reg_model$coefficients[[2]],
                                    adjusted_r_squared = summary(reg_model)$adj.r.squared,
-                                   rmse = Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
-                                   mae = Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
+                                   rmse = reg_model_rmse,
+                                   mae = reg_model_mae
   )
   # Check if there is no rolling window
-  if (window_size == nrow(reg_data)){
+  if (window_size == nrow(reg_data)) {
     return(regression_summary)
   }
   # Following occurences
@@ -154,45 +161,92 @@ summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_d
 }
 
 
+# Temporary functions -----------------
+
+create_summary_for_several_simple_regressions_to_estimate_quarterly_variation_of_GDP_with_ga <- function(y_var, list_x_var, reg_data) {
+  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  regressions_summary <- summarise_simple_regression_to_estimate_quarterly_variation_of_GDP_with_ga(y_var, list_x_var[[1]], reg_data)
+
+  for (x_var in list_x_var[2:length(list_x_var)]) {
+    regressions_summary <- regressions_summary %>%
+      dplyr::bind_rows(summarise_simple_regression_to_estimate_quarterly_variation_of_GDP_with_ga(y_var, x_var, reg_data))
+  }
+  return(regressions_summary)
+}
+
+summarise_simple_regression_to_estimate_quarterly_variation_of_GDP_with_ga <- function(y_var, x_var, reg_data, dimension_name = NULL) {
+  # NOTE: in this function we consider that we want to estimate the quarterly variation of GDP with its annual variation (ga, i.e. glissement annuel in French)
+  # NOTE: so we assume that the reg_data contains the following variables: PIB, var1_PIB and that var4_PIB is the y_var
+  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  # TODO: for now, only works with reg_data = regression_data_ga (in the selection of the observertions to use)
+
+  # unspecific name
+  if (is.null(dimension_name)) {
+    dimension_name <- x_var
+  }
+
+  # regression
+  reg_model <- lm(reg_data[[y_var]] ~ reg_data[[x_var]], data = reg_data)
+
+  # compile RMSE and MAE
+  reg_input_output <- data.frame(PIB = reg_data$PIB,
+                                 var4_PIB = reg_data$var4_PIB,
+                                 var1_PIB = reg_data$var1_PIB,
+                                 fitted_var4_PIB = reg_model$fitted.values)
+  reg_input_output <- reg_input_output %>%
+    dplyr::mutate(fitted_var1_PIB = (((1 + fitted_var4_PIB) * lag(PIB, 4) - lag(PIB, 1))) / lag(PIB, 1))
+  reg_model_rmse <- Metrics::rmse(reg_input_output$var1_PIB[c(5:31, 36:71)], reg_input_output$fitted_var1_PIB[c(5:31, 36:71)]) # TODO: observation' numbers only work for the dataframe regression_data_ga
+  reg_model_mae <- Metrics::mae(reg_input_output$var1_PIB[c(5:31, 36:71)], reg_input_output$fitted_var1_PIB[c(5:31, 36:71)])
+
+  regression_summary <- data.frame(dimension = dimension_name,
+                                   date = reg_data$date[[nrow(reg_data)]],
+                                   constant = reg_model$coefficients[[1]],
+                                   coefficient = reg_model$coefficients[[2]],
+                                   adjusted_r_squared = summary(reg_model)$adj.r.squared,
+                                   rmse = reg_model_rmse,
+                                   mae = reg_model_mae
+  )
+  return(regression_summary)
+}
 
 # functions for regressions --------------------------------------------------------------------------------------------
 
-summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL) {
-  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
-  # unspecific name
-  if (is.null(dimension_name)) {
-    dimension_name <- x_var
-  }
-  # First occurence
-  reg_data_1 <- reg_data[1:window_size,]
-  reg_model <- lm(reg_data_1[[y_var]] ~ reg_data_1[[x_var]], data = reg_data_1)
-  regression_summary <- data.frame(dimension = dimension_name,
-                                   date = reg_data$date[[window_size]],
-                                   constant = reg_model$coefficients[[1]],
-                                   coefficient = reg_model$coefficients[[2]],
-                                   adjusted_r_squared = summary(reg_model)$adj.r.squared,
-                                   rmse = Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
-                                   mae = Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
-  )
-  # Check if there is no rolling window
-  if (window_size == nrow(reg_data)){
-    return(regression_summary)
-  }
-  # Following occurences
-  for (i in (window_size + 1):nrow(reg_data)) {
-    reg_data_i <- reg_data[(i - window_size + 1):i,]
-    reg_model_i <- lm(reg_data_i[[y_var]] ~ reg_data_i[[x_var]], data = reg_data_i)
-    new_df <- data.frame(dimension = dimension_name,
-                         date = reg_data$date[[i]],
-                         constant = reg_model_i$coefficients[[1]],
-                         coefficient = reg_model_i$coefficients[[2]],
-                         adjusted_r_squared = summary(reg_model_i)$adj.r.squared,
-                         rmse = Metrics::rmse(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
-                         mae = Metrics::mae(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values)
-    )
-    regression_summary <- regression_summary %>%
-      dplyr::bind_rows(new_df)
-    rm(reg_model_i)
-  }
-  return(regression_summary)
-}
+# summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL) {
+#   # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+#   # unspecific name
+#   if (is.null(dimension_name)) {
+#     dimension_name <- x_var
+#   }
+#   # First occurence
+#   reg_data_1 <- reg_data[1:window_size,]
+#   reg_model <- lm(reg_data_1[[y_var]] ~ reg_data_1[[x_var]], data = reg_data_1)
+#   regression_summary <- data.frame(dimension = dimension_name,
+#                                    date = reg_data$date[[window_size]],
+#                                    constant = reg_model$coefficients[[1]],
+#                                    coefficient = reg_model$coefficients[[2]],
+#                                    adjusted_r_squared = summary(reg_model)$adj.r.squared,
+#                                    rmse = Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
+#                                    mae = Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
+#   )
+#   # Check if there is no rolling window
+#   if (window_size == nrow(reg_data)){
+#     return(regression_summary)
+#   }
+#   # Following occurences
+#   for (i in (window_size + 1):nrow(reg_data)) {
+#     reg_data_i <- reg_data[(i - window_size + 1):i,]
+#     reg_model_i <- lm(reg_data_i[[y_var]] ~ reg_data_i[[x_var]], data = reg_data_i)
+#     new_df <- data.frame(dimension = dimension_name,
+#                          date = reg_data$date[[i]],
+#                          constant = reg_model_i$coefficients[[1]],
+#                          coefficient = reg_model_i$coefficients[[2]],
+#                          adjusted_r_squared = summary(reg_model_i)$adj.r.squared,
+#                          rmse = Metrics::rmse(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
+#                          mae = Metrics::mae(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values)
+#     )
+#     regression_summary <- regression_summary %>%
+#       dplyr::bind_rows(new_df)
+#     rm(reg_model_i)
+#   }
+#   return(regression_summary)
+# }
