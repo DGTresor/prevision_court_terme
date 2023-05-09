@@ -13,7 +13,7 @@ source("../loader_fundamentals.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # constants for revised production -------------------------------------------------------------------------------------
-PRODUCTION_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014"
+# PRODUCTION_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014"
 PRODUCTION_FILE_NAME <- "cprvolch.csv"
 PRODUCTION_DIMENSIONS <- list("default" = c("revised_production" = "TD.P1E_DIM_7CH"))
 
@@ -21,53 +21,55 @@ PRODUCTION_DIMENSIONS <- list("default" = c("revised_production" = "TD.P1E_DIM_7
 # /!\ Note: pre_2010 classification applies to 2010 quarters and before; for 2010, and before, the classification is different. So, we decide not to use data before 2011.
 # Note: .xls, .cvs or .RData files are available only from base2000 on, i.e. starting from the 2007T4PE account.
 # Note: .xls files always have the same ID code for indicators, however they have been different for .csv files and since .csv files are easier to load, we need to account for the change in ID codes.
-DIMENSIONS_TO_KEEP <- list("post_19T2RD" = c("production_BE" = "TD.P1E_DI_7CH",
-                                             "production_CZ" = "TD.P1E_DIM_7CH",
-                                             "production_C1" = "TD.P1E_A17C1_7CH",
-                                             "production_C2" = "TD.P1E_A17C2_7CH",
-                                             "production_C3" = "TD.P1E_A17C3_7CH",
-                                             "production_C4" = "TD.P1E_A17C4_7CH",
-                                             "production_C5" = "TD.P1E_A17C5_7CH",
-                                             "production_DE" = "TD.P1E_A17DE_7CH",
-                                             "production_FZ" = "TD.P1E_A17FZ_7CH",
-                                             "valeur_ajoutee_BE" = "TD.B1_DI_7CH",
-                                             "valeur_ajoutee_CZ" = "TD.B1_DIM_7CH",
-                                             "valeur_ajoutee_C1" = "TD.B1_A17C1_7CH",
-                                             "valeur_ajoutee_C2" = "TD.B1_A17C2_7CH",
-                                             "valeur_ajoutee_C3" = "TD.B1_A17C3_7CH",
-                                             "valeur_ajoutee_C4" = "TD.B1_A17C4_7CH",
-                                             "valeur_ajoutee_C5" = "TD.B1_A17C5_7CH",
-                                             "valeur_ajoutee_DE" = "TD.B1_A17DE_7CH",
-                                             "valeur_ajoutee_FZ" = "TD.B1_A17FZ_7CH"),
-                           "pre_19T2RD_csv" = c("production_BE" = "TD_P1E_DI7_CH",
-                                                "production_CZ" = "TD_P1E_DIM7_CH",
-                                                "production_C1" = "TD_P1E_C17_CH",
-                                                "production_C2" = "TD_P1E_C27_CH",
-                                                "production_C3" = "TD_P1E_C37_CH",
-                                                "production_C4" = "TD_P1E_C47_CH",
-                                                "production_C5" = "TD_P1E_C57_CH",
-                                                "production_DE" = "TD_P1E_DE7_CH",
-                                                "production_FZ" = "TD_P1E_FZ7_CH",
-                                                "valeur_ajoutee_BE" = "TD_B1_DI7_CH",
-                                                "valeur_ajoutee_CZ" = "TD_B1_DIM7_CH",
-                                                "valeur_ajoutee_C1" = "TD_B1_C17_CH",
-                                                "valeur_ajoutee_C2" = "TD_B1_C27_CH",
-                                                "valeur_ajoutee_C3" = "TD_B1_C37_CH",
-                                                "valeur_ajoutee_C4" = "TD_B1_C47_CH",
-                                                "valeur_ajoutee_C5" = "TD_B1_C57_CH",
-                                                "valeur_ajoutee_DE" = "TD_B1_DE7_CH",
-                                                "valeur_ajoutee_FZ" = "TD_B1_FZ7_CH"),
-                           "pre_2010" = "")
+NATIONAL_ACCOUNTING_DIMENSIONS_TO_KEEP <- list("post_19T2RD" = c("pib" = "TD.PIB_7CH",
+                                                                 "production_BE" = "TD.P1E_DI_7CH",
+                                                                 "production_CZ" = "TD.P1E_DIM_7CH",
+                                                                 "production_C1" = "TD.P1E_A17C1_7CH",
+                                                                 "production_C2" = "TD.P1E_A17C2_7CH",
+                                                                 "production_C3" = "TD.P1E_A17C3_7CH",
+                                                                 "production_C4" = "TD.P1E_A17C4_7CH",
+                                                                 "production_C5" = "TD.P1E_A17C5_7CH",
+                                                                 "production_DE" = "TD.P1E_A17DE_7CH",
+                                                                 "production_FZ" = "TD.P1E_A17FZ_7CH",
+                                                                 "valeur_ajoutee_BE" = "TD.B1_DI_7CH",
+                                                                 "valeur_ajoutee_CZ" = "TD.B1_DIM_7CH",
+                                                                 "valeur_ajoutee_C1" = "TD.B1_A17C1_7CH",
+                                                                 "valeur_ajoutee_C2" = "TD.B1_A17C2_7CH",
+                                                                 "valeur_ajoutee_C3" = "TD.B1_A17C3_7CH",
+                                                                 "valeur_ajoutee_C4" = "TD.B1_A17C4_7CH",
+                                                                 "valeur_ajoutee_C5" = "TD.B1_A17C5_7CH",
+                                                                 "valeur_ajoutee_DE" = "TD.B1_A17DE_7CH",
+                                                                 "valeur_ajoutee_FZ" = "TD.B1_A17FZ_7CH"),
+                                               "pre_19T2RD_csv" = c("pib" = "TD_PIB7_CH",
+                                                                    "production_BE" = "TD_P1E_DI7_CH",
+                                                                    "production_CZ" = "TD_P1E_DIM7_CH",
+                                                                    "production_C1" = "TD_P1E_C17_CH",
+                                                                    "production_C2" = "TD_P1E_C27_CH",
+                                                                    "production_C3" = "TD_P1E_C37_CH",
+                                                                    "production_C4" = "TD_P1E_C47_CH",
+                                                                    "production_C5" = "TD_P1E_C57_CH",
+                                                                    "production_DE" = "TD_P1E_DE7_CH",
+                                                                    "production_FZ" = "TD_P1E_FZ7_CH",
+                                                                    "valeur_ajoutee_BE" = "TD_B1_DI7_CH",
+                                                                    "valeur_ajoutee_CZ" = "TD_B1_DIM7_CH",
+                                                                    "valeur_ajoutee_C1" = "TD_B1_C17_CH",
+                                                                    "valeur_ajoutee_C2" = "TD_B1_C27_CH",
+                                                                    "valeur_ajoutee_C3" = "TD_B1_C37_CH",
+                                                                    "valeur_ajoutee_C4" = "TD_B1_C47_CH",
+                                                                    "valeur_ajoutee_C5" = "TD_B1_C57_CH",
+                                                                    "valeur_ajoutee_DE" = "TD_B1_DE7_CH",
+                                                                    "valeur_ajoutee_FZ" = "TD_B1_FZ7_CH"),
+                                               "pre_2010" = "")
 # check if I use a list or a named vector
 
 # loaders --------------------------------------------------------------------------------------------------------------
 ## Note: the loaders are made to be independent so if another format of excel or csv files appears, just create a new loader
 
-csv_pre_19T2RD_production_loader <- function(file_path, folder_name) {
+csv_pre_19T2RD_production_loader <- function(file_path, folder_name, file_name) {
   # ensure that the file_path is complete
   ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.csv") or only the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
   if (!stringr::str_detect(file_path, ".csv$")) {
-    file_path <- file.path(file_path, "cprvolch.csv")
+    file_path <- file.path(file_path, paste0(file_name, ".csv"))
   }
   # load the file
   suppressWarnings(                                                                              # suppress warnings to prevent warning of first column's name missing
@@ -79,11 +81,11 @@ csv_pre_19T2RD_production_loader <- function(file_path, folder_name) {
   return(clean_data)
 }
 
-xls_production_loader <- function(file_path, folder_name) {
+xls_production_loader <- function(file_path, folder_name, file_name) {
   # ensure that the file_path is complete
   ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.xls") or the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
   if (!stringr::str_detect(file_path, ".xls$")) {
-    file_path <- file.path(file_path, "cprvolch.xls")
+    file_path <- file.path(file_path, paste0(file_name, ".xls"))
   }
   # load the file
   new_data <- readxl::read_xls(path = file_path, col_names = TRUE)
@@ -95,11 +97,11 @@ xls_production_loader <- function(file_path, folder_name) {
 }
 
 # TODO: check code duplication with xls_production_loader()
-csv_post_19T2RD_production_loader <- function(file_path, folder_name) {
+csv_post_19T2RD_production_loader <- function(file_path, folder_name, file_name) {
   # ensure that the file_path is complete
   ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.csv") or the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
   if (!stringr::str_detect(file_path, ".csv$")) {
-    file_path <- file.path(file_path, "cprvolch.csv")
+    file_path <- file.path(file_path, paste0(file_name, ".csv"))
   }
   # load the file
   suppressMessages(new_data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
@@ -137,8 +139,8 @@ transform_quarterly_string_dates_to_date <- function(date_column) {
   #                                                     "-",
   #                                                     as.numeric(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\3", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
   #                                                     "-01"))
-   # TODO : check if does not break the prevision code
-    date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "(A?)([0-9]{4})(Q|T)([1-9])", "\\2", date_column), # extract the year
+  # TODO : check if does not break the prevision code
+  date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "(A?)([0-9]{4})(Q|T)([1-9])", "\\2", date_column), # extract the year
                                                       "-",
                                                       as.numeric(sub(pattern = "(A?)([0-9]{4})(Q|T)([1-9])", "\\4", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
                                                       "-01"))
@@ -147,7 +149,7 @@ transform_quarterly_string_dates_to_date <- function(date_column) {
 
 # data cleaners for specific format ------------------------------------------------------------------------------------
 # TODO : try to reduce code duplication between the two functions
-data_cleaner_for_csv <- function(data, dimensions_list_name, list_of_dimensions = DIMENSIONS_TO_KEEP) {
+data_cleaner_for_csv <- function(data, dimensions_list_name, list_of_dimensions = NATIONAL_ACCOUNTING_DIMENSIONS_TO_KEEP) {
   # get the proper list of dimensions
   list_of_dimensions <- list_of_dimensions[[dimensions_list_name]]
   # rename the first column
@@ -181,7 +183,7 @@ data_cleaner_for_csv <- function(data, dimensions_list_name, list_of_dimensions 
 }
 
 
-data_cleaner_for_xls <- function(data, dimensions_list, list_of_dimensions = DIMENSIONS_TO_KEEP) {
+data_cleaner_for_xls <- function(data, dimensions_list, list_of_dimensions = NATIONAL_ACCOUNTING_DIMENSIONS_TO_KEEP) {
   # get the proper list of dimensions
   list_of_dimensions <- list_of_dimensions[[dimensions_list]]
   # rename the first column

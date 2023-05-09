@@ -39,6 +39,8 @@ get_loader_provider <- function(data_source) {
     return(get_loader_for_ipi)
   } else if (data_source == "production") {
     return(get_loader_for_production)
+  } else if (data_source == "pib") {
+    return(get_loader_for_pib)
   } else {
     stop(paste0("No loader provider found for the data_source: ", data_source))
   }
@@ -80,4 +82,67 @@ construct_nonrevised_series <- function(data, new_data, date_granularity = "quar
   # bind all data together
   data <- dplyr::bind_rows(data, data_to_bind)
   return(data)
+}
+
+## TODO: maybe put functions for national accounting data elsewhere => a common folder for nonrevised_production and nonrevised_pib ?
+# functions for national accounting data -------------------------------------------------------------------------------
+# todo: check duplication with construct_nonrevised_ipi_from_scratch()
+construct_nonrevised_national_account_data_from_scratch <- function(data_source, files_list, file_type2files_list, file_name, number_previous_values = 0) {
+  df <- get_empty_dataframe(number_previous_values)
+  # column_to_join_by <- get_column_names_to_join_by()
+
+  loader_provider <- get_loader_provider(data_source = data_source)
+  for (folder_name in names(files_list)) {
+    print(paste("On s'occupe du dossier :", folder_name))
+    loader <- get_loader(folder_name, file_type2files_list, loader_provider)
+    # file_path <- file.path(files_list[[folder_name]], "cprvolch")
+    new_data <- loader(files_list[[folder_name]], folder_name, file_name)
+    df <- construct_nonrevised_series(df, new_data, date_granularity = "quarter", number_previous_values = number_previous_values)
+    rm(new_data)
+  }
+  df <- df %>% dplyr::arrange(date)
+  #select(all_of(sort(colnames(data_to_bind))))
+  return(df)
+}
+
+# functions to prepare the files' list for national accounting data ----------------------------------------------------
+get_national_accounting_data_files <- function(national_accounting_data_folder, estimation_type, subset_regex = NULL) {
+  # define the regex pattern corresponding to the estimation_type
+  estimation_pattern <- get_estimation_pattern_for_estimation_type(estimation_type)
+  # get the list of folders containing each quarterly account
+  national_accounting_data_folders <- list.dirs(national_accounting_data_folder, recursive = TRUE, full.names = TRUE)
+  national_accounting_data_folders <- stringr::str_subset(string = national_accounting_data_folders,
+                                                          pattern = paste0(".*/base(?!(1980)|(1995)|(2000))[:digit:]{4}/(?!(10))[:digit:]{2}T[:digit:]", estimation_pattern, "$"))
+  ## Note: the regex means: ".*/base(?!(1980)|(1995)|(2000))[:digit:]{4}/" -> we take the folders that contain data from base 2005 and onward
+  ## "(?!(10))[:digit:]{2}T[:digit:](PE|RD)$" -> we take the folders that contain data for the PE (Premiere Estimation) or RD (Resultats Detailles) in the format e.g. 11T1PE (Première Estimation du T1 2011),
+  ## end we exclude data for the year 2010 for which data follows another classification
+
+  #todo: to delete when other loaders created
+  # production_data_folders <- stringr::str_subset(string = production_data_folders,
+  #                                                pattern = ".*/((1.*)|(20.*)|(21.*)|(22T1PE)|(22T1RD))")
+
+  # reduce the list of folders for additional purposes
+  if (!is.null(subset_regex)) {
+    national_accounting_data_folders <- stringr::str_subset(string = national_accounting_data_folders,
+                                                            pattern = subset_regex)
+  }
+
+  # give an harmonised name to each file according to the last date of the national accounting data
+  names(national_accounting_data_folders) <- stringr::str_extract(national_accounting_data_folders, pattern = "(?<=/)[:digit:]{2}T[:digit:](PE|RD)$")
+  ## Note: to ensure that the folders are read in the good chronological order, it is essential that they are named properly
+
+  # sort the list by the names
+  national_accounting_data_folders <- national_accounting_data_folders[sort(names(national_accounting_data_folders))]
+
+  return(national_accounting_data_folders)
+}
+
+get_estimation_pattern_for_estimation_type <- function(estimation_type) {
+  if (estimation_type %in% c("PE", "RD")) {
+    return(estimation_type)
+  } else if (estimation_type == "all") {
+    return("(PE|RD)")
+  } else {
+    stop("estimation_type can only be: \"PE\", \"RD\" or \"all\".")
+  }
 }
