@@ -6,13 +6,13 @@
 library(stringr)
 library(dplyr)
 library(tidyr)
-source("./loaders.R", encoding = "utf-8", chdir = TRUE)
+source("../../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("../../loader_fundamentals.R", encoding = "utf-8", chdir = TRUE)
 
 # folders --------------------------------------------------------------------------------------------------------------
-NATIONAL_ACCOUNTING_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim"
-PIB_FILE_NAME <- "erevolch.csv"
-PIB_DIMENSIONS <- list("default" = c("revised_pib" = "TD.PIB_7CH")) # -> file 2019T4PE
+# NATIONAL_ACCOUNTING_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim"
+# PIB_FILE_NAME <- "erevolch.csv"
+# PIB_DIMENSIONS <- list("default" = c("revised_pib" = "TD.PIB_7CH")) # -> file 2019T4PE
 
 # The file we need is "erevolch", according to the years, it can be in .RData, .xls or .cvs.
 # it contains the PIB.

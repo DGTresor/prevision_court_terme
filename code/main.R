@@ -16,7 +16,7 @@ library(ggplot2)
 source("./code/data_importator.R", encoding = "utf-8")
 source("./code/data_preparator.R", encoding = "utf-8")
 source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
-source("./code/nonrevised_production/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
@@ -53,11 +53,11 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
 
 # 2. load nonrevised production ----------------------------------------------------------------------------------------
 if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
-  # nonrevised_production <- update_nonrevised_production()
+  # nonrevised_national_accounting <- update_nonrevised_production()
   load("./data/nonrevised_production_2023-01-01PE.RData")
 } else {
   # preparation of the list
-  PRODUCTION_DATA_FOLDERS <- get_national_accounting_data_files(PRODUCTION_DATA_FOLDER, estimation_type = "PE")
+  PRODUCTION_DATA_FOLDERS <- get_national_accounting_data_files(NATIONAL_ACCOUNTING_DATA_FOLDER, estimation_type = "PE")
   # we keep only the folders containing the 1st estimation of the quarterly accounts (PE)
   ## Note : we do not want to use the .RData file (available from 19T4) because they are ts() series not in dataframe format and we would need to reconstruct everything
   PRODUCTION_FILES_TYPES <- list("pre_19T2RD_csv" = stringr::str_subset(names(PRODUCTION_DATA_FOLDERS), "(^1(?!(9T2RD)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*)"), # we want
@@ -65,10 +65,11 @@ if (ONLY_UPDATE_NONREVISED_PRODUCTION_DATA) {
                                  "post_19T2RD_csv" = stringr::str_subset(names(PRODUCTION_DATA_FOLDERS), "(^2(?!(0.*)|(1.*)|(2T1PE)|(2T1RD)).*)"))
 
   # preparation of the matrix
-  nonrevised_production <- construct_nonrevised_national_account_data_from_scratch(data_source = "production",
+  nonrevised_production <- construct_nonrevised_national_account_data_from_scratch(data_source = "national_accounting",
                                                                                    files_list = PRODUCTION_DATA_FOLDERS,
                                                                                    file_type2files_list = PRODUCTION_FILES_TYPES,
-                                                                                   file_name = "cprvolch",
+                                                                                   file_name = PRODUCTION_FILE_NAME,
+                                                                                   dimensions_list = PRODUCTION_DIMENSIONS,
                                                                                    number_previous_values = 47) #24
 
   save(nonrevised_production, file = paste0("./data/", "nonrevised_production_", max(unique(nonrevised_production[["date"]])), "PE.RData"))
@@ -89,10 +90,10 @@ if (UPDATE_REVISED_IPI_DATA) {
 }
 
 if (UPDATE_REVISED_PRODUCTION_DATA) {
-  revised_production <- compta_nat_loader(folder_path = PRODUCTION_DATA_FOLDER,
-                                          file_name = PRODUCTION_FILE_NAME,
-                                          dimensions_list = PRODUCTION_DIMENSIONS,
-                                          dimensions_list_name = "default")
+  revised_production <- most_recent_compta_nat_data_loader(folder_path = NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014,
+                                                           file_name = PRODUCTION_FILE_NAME,
+                                                           dimensions_list = PRODUCTION_DIMENSIONS,
+                                                           dimensions_list_name = "revised")
 
   save(revised_production, file = paste0("./data/", "revised_production_", max(unique(nonrevised_production[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
 } else {

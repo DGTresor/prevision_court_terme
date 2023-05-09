@@ -32,10 +32,10 @@ if (LOAD_EXISTING_DATA) {
   load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
 } else {
   # read data --------------------
-  pib_data <- compta_nat_loader(folder_path = PIB_DATA_FOLDER,
-                                file_name = PIB_FILE_NAME,
-                                dimensions_list = PIB_DIMENSIONS,
-                                dimensions_list_name = "default")
+  pib_data <- most_recent_compta_nat_data_loader(folder_path = PIB_DATA_FOLDER,
+                                                 file_name = PIB_FILE_NAME,
+                                                 dimensions_list = PIB_DIMENSIONS,
+                                                 dimensions_list_name = "default")
 
   pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
                                                       column_list = PMI_DIMENSIONS_LIST) %>%

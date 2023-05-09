@@ -18,7 +18,7 @@ library(DGTresorGraphes)
 source("../data_importator.R", encoding = "utf-8")
 source("../data_preparator.R", encoding = "utf-8")
 source("../nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
-source("../nonrevised_production/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 source("../old_scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")

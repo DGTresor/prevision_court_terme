@@ -9,13 +9,11 @@ library(readr)
 library(Metrics)
 
 # dependencies
-source("../nonrevised_production/loaders.R", encoding = "utf-8", chdir = TRUE)
+source("../nonrevised_national_accounting/loaders.R", encoding = "utf-8", chdir = TRUE)
 source("../old_scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # constants ------------------------------------------------------------------------------------------------------------
-PIB_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014"
-PIB_FILE_NAME <- "erevolch.csv"
 PATH_TO_PMI_DATA <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/6. Enquêtes PMI/4. Préparation mail réaction PMI/Données/Data PMI.xlsx"
 PATH_TO_FR_DEROULEUR <- list(path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/FR_Dérouleur.xlsx",
                              sheet = "Données enquêtes")
@@ -39,22 +37,25 @@ BDF_DIMENSIONS_LIST <- list(
   "construction" = "construction"
 )
 
+# TODO: put all the function below in data_importator.R
 # functions to load data -----------------------------------------------------------------------------------------------
 
-compta_nat_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {
-  file_path <- get_compta_nat_most_recent_file(folder_path, file_name)
-  suppressMessages(data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
-
-  clean_data <- data_cleaner_for_csv(data, dimensions_list_name = dimensions_list_name, list_of_dimensions = dimensions_list)
-  return(clean_data)
-}
-
-get_compta_nat_most_recent_file <- function(folder_path, file_name) {
-  message("Le chemin du dossier pointe actuellement vers base2014 ; Pensez à le changer si la base change.")
-  most_recent_folder <- get_the_most_recent_file(folder_path)
-  file_path <- file.path(most_recent_folder, file_name)
-  return(file_path)
-}
+# most_recent_compta_nat_data_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {
+#   file_path <- get_compta_nat_most_recent_file(folder_path, file_name)
+#   suppressMessages(data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
+#
+#   clean_data <- data_cleaner_for_csv(data, dimensions_list_name = dimensions_list_name, list_of_dimensions = dimensions_list)
+#   return(clean_data)
+# }
+#
+# get_compta_nat_most_recent_file <- function(folder_path, file_name) {
+#   # Note: le file_name doit contenir l'extension, e.g. cprvolch.csv
+#   national_account_base_year <- stringr::str_extract(string = folder_path, pattern = "(?<=/)base[:digit:]{4}")
+#   message(paste("Le chemin du dossier pointe actuellement vers", national_account_base_year, "; Pensez à le changer si la base change."))
+#   most_recent_folder <- get_the_most_recent_file(folder_path)
+#   file_path <- file.path(most_recent_folder, file_name)
+#   return(file_path)
+# }
 
 get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
   # get all the folders' names in the folder
