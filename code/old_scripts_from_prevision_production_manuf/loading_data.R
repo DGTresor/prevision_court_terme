@@ -189,79 +189,79 @@ load_bdf_survey_data_from_excel <- function(path_to_data) {
 }
 
 # helpers to load insee data -------------------------------------------------------------------------------------------
-load_data_from_insee <- function(insee_series_code, data_type) {
-  # parameters to connect to the Insee database
-  Sys.setenv(INSEE_download_option_method = "curl")
-  Sys.setenv(INSEE_download_option_port = "8080")
-  Sys.setenv(INSEE_download_option_extra = "-U : --proxy-ntlm --proxy http.proxyvip.alize:8080")
-  Sys.setenv(INSEE_download_option_proxy = "http.proxyvip.alize")
-  Sys.setenv(INSEE_download_option_auth = "ntlm")
-
-  # list of the Insee's datasets
-  # dataset_list = get_dataset_list() # useful to get look for the data we need
-
-  # use the proper loading function according to the data type
-  loading_function <- get_insee_loading_function(data_type)
-
-  # get data
-  data <- insee::get_insee_idbank(loading_function(insee_series_code[1])) %>%
-    select(DATE, OBS_VALUE) %>%
-    mutate(DIMENSION = insee_series_code[1])
-
-  if (length(insee_series_code) > 1) {
-    for (dimension in insee_series_code[2:length(insee_series_code)]) {
-      new_data <- insee::get_insee_idbank(loading_function(dimension)) %>%
-        select(DATE, OBS_VALUE) %>%
-        mutate(DIMENSION = dimension)
-
-      data <- data %>%
-        bind_rows(new_data)
-    }
-  }
-  return(data)
-}
-
-get_insee_loading_function <- function(data_type) {
-  if (data_type == "ipi") {
-    return(get_ipi_series_id_for_sector)
-  } else {
-    stop("Choose \"ipi\" as data_type argument for the get_loading_function().")
-  }
-}
-
-get_ipi_series_id_for_sector <- function(sector) {
-  series_id <- insee::get_idbank_list("IPI-2015") %>%
-    filter(NAF2 == sector) %>% #sector
-    filter(NATURE == "INDICE") %>%
-    filter(CORRECTION == "CVS-CJO") %>%  #SA-WDA, seasonally adjusted, working day adjusted
-    pull(idbank)
-
-  return(series_id)
-}
-
-insee_data_formater <- function(data, regex_pattern_to_clean_insee_codes, columns_label = list()) {
-  # rename the columns
-  clean_data <- data %>%
-    rename(date = DATE,
-           dimension = DIMENSION,
-           value = OBS_VALUE)
-
-  # use the regex pattern you need to clean the name of your dimensions, if it is not clean
-  clean_data <- clean_data %>%
-    mutate(dimension = stringr::str_extract(clean_data$dimension, pattern = regex_pattern_to_clean_insee_codes))
-
-  # add columns' label
-  if (length(columns_label) > 0) {
-    clean_data$label <- mapper(clean_data$dimension, columns_label)
-  }
-
-  # reorganise the dataframe
-  clean_data <- clean_data %>%
-    select(date, dimension, contains("label"), value) %>%
-    arrange(date)
-
-  return(clean_data)
-}
+# load_data_from_insee <- function(insee_series_code, data_type) {
+#   # parameters to connect to the Insee database
+#   Sys.setenv(INSEE_download_option_method = "curl")
+#   Sys.setenv(INSEE_download_option_port = "8080")
+#   Sys.setenv(INSEE_download_option_extra = "-U : --proxy-ntlm --proxy http.proxyvip.alize:8080")
+#   Sys.setenv(INSEE_download_option_proxy = "http.proxyvip.alize")
+#   Sys.setenv(INSEE_download_option_auth = "ntlm")
+#
+#   # list of the Insee's datasets
+#   # dataset_list = get_dataset_list() # useful to get look for the data we need
+#
+#   # use the proper loading function according to the data type
+#   loading_function <- get_insee_loading_function(data_type)
+#
+#   # get data
+#   data <- insee::get_insee_idbank(loading_function(insee_series_code[1])) %>%
+#     select(DATE, OBS_VALUE) %>%
+#     mutate(DIMENSION = insee_series_code[1])
+#
+#   if (length(insee_series_code) > 1) {
+#     for (dimension in insee_series_code[2:length(insee_series_code)]) {
+#       new_data <- insee::get_insee_idbank(loading_function(dimension)) %>%
+#         select(DATE, OBS_VALUE) %>%
+#         mutate(DIMENSION = dimension)
+#
+#       data <- data %>%
+#         bind_rows(new_data)
+#     }
+#   }
+#   return(data)
+# }
+#
+# get_insee_loading_function <- function(data_type) {
+#   if (data_type == "ipi") {
+#     return(get_ipi_series_id_for_sector)
+#   } else {
+#     stop("Choose \"ipi\" as data_type argument for the get_loading_function().")
+#   }
+# }
+#
+# get_ipi_series_id_for_sector <- function(sector) {
+#   series_id <- insee::get_idbank_list("IPI-2015") %>%
+#     filter(NAF2 == sector) %>% #sector
+#     filter(NATURE == "INDICE") %>%
+#     filter(CORRECTION == "CVS-CJO") %>%  #SA-WDA, seasonally adjusted, working day adjusted
+#     pull(idbank)
+#
+#   return(series_id)
+# }
+#
+# insee_data_formater <- function(data, regex_pattern_to_clean_insee_codes, columns_label = list()) {
+#   # rename the columns
+#   clean_data <- data %>%
+#     rename(date = DATE,
+#            dimension = DIMENSION,
+#            value = OBS_VALUE)
+#
+#   # use the regex pattern you need to clean the name of your dimensions, if it is not clean
+#   clean_data <- clean_data %>%
+#     mutate(dimension = stringr::str_extract(clean_data$dimension, pattern = regex_pattern_to_clean_insee_codes))
+#
+#   # add columns' label
+#   if (length(columns_label) > 0) {
+#     clean_data$label <- mapper(clean_data$dimension, columns_label)
+#   }
+#
+#   # reorganise the dataframe
+#   clean_data <- clean_data %>%
+#     select(date, dimension, contains("label"), value) %>%
+#     arrange(date)
+#
+#   return(clean_data)
+# }
 
 # general helpers ------------------------------------------------------------------------------------------------------
 
