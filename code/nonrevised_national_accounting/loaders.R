@@ -90,7 +90,8 @@ return_dimensions_list_name_for <- function(folder_name) {
   folder_name_pattern <- "([0-9]{2})T([0-9])([A-Z]{2})"
   year <- as.numeric(sub(x = folder_name, pattern = folder_name_pattern, replacement = "\\1"))
   if (year <= 10) {
-    stop("For now, we should not use data before 2011 because the quarterly national accounts' methodology was too different.")
+    return("pre_2011")
+    message("Note that pre2011 data should only be used for now for PIB data because national accounting conventions have changed a lot between base2005 and base2000.")
   } else if (year > 10 & year <= 18) {
     return("pre_19T2RD_csv")
   } else if (year == 19) {

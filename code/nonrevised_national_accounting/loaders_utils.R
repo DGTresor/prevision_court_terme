@@ -62,7 +62,7 @@ PRODUCTION_DIMENSIONS <- list("revised" = c("production" = "TD.P1E_DIM_7CH"),
 PIB_FILE_NAME <- "erevolch"
 PIB_DIMENSIONS <- list("post_19T2RD" = c("pib" = "TD.PIB_7CH"),
                        "pre_19T2RD_csv" = c("pib" = "TD_PIB7_CH"),
-                       "pre_2010" = "")
+                       "pre_2011" = c("pib" = "TD.PIB7_CH"))
 # The file we need is "erevolch", according to the years, it can be in .RData, .xls or .cvs.
 # it contains the PIB.
 # We use data from base2005 onward; the exclusion of data previous to base2005 is dealt in the function: get_national_accounting_data_files()
@@ -101,6 +101,8 @@ get_loader_for_national_accounting <- function(file_type) {
     return(xls_national_accounting_loader)
   } else if (file_type == "post_19T2RD_csv") {
     return(csv_post_19T2RD_national_accounting_loader)
+  } else  if (file_type == "pre_2011_xls") {
+    return(xls_national_accounting_loader)  # only for PIB data for now because the convention (for activity sectors notably) changed between base2000 and base2005
   } else {
     stop(paste0("No loader found for the file_type: ", file_type))
   }
@@ -124,17 +126,33 @@ update_nonrevised_production <- function() {
 
 }
 
+get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
+  # get all the folders' names in the folder
+  files_names <- list.files(path = folder_path, full.names = FALSE)
+
+  # remove certain specific files if needed
+  if (!is.null(exclusion_list)) {
+    files_names <- files_names[!(files_names %in% exclusion_list)]
+  }
+
+  # the current alphanumeric classification enables that the last folder is the most recent
+  most_recent_file <- file.path(folder_path, files_names[length(files_names)])
+
+  return(most_recent_file)
+}
+
 # functions to prepare the files' list ---------------------------------------------------------------------------------
-get_national_accounting_data_files <- function(national_accounting_data_folder, estimation_type, subset_regex = NULL) {
+get_national_accounting_data_files <- function(national_accounting_data_folder, estimation_type, subset_regex = NULL, starting_period = "standard") {
   # define the regex pattern corresponding to the estimation_type
   estimation_pattern <- get_estimation_pattern_for_estimation_type(estimation_type)
+
+  # get the regex pattern according to the starting_period  # TODO: can be exported to another function
+  regex_for_folder_names <- get_regex_pattern_according_to_starting_period(starting_period, estimation_pattern)
+
   # get the list of folders containing each quarterly account
   national_accounting_data_folders <- list.dirs(national_accounting_data_folder, recursive = TRUE, full.names = TRUE)
   national_accounting_data_folders <- stringr::str_subset(string = national_accounting_data_folders,
-                                                          pattern = paste0(".*/base(?!(1980)|(1995)|(2000))[:digit:]{4}/(?!(10))[:digit:]{2}T[:digit:]", estimation_pattern, "$"))
-  ## Note: the regex means: ".*/base(?!(1980)|(1995)|(2000))[:digit:]{4}/" -> we take the folders that contain data from base 2005 and onward
-  ## "(?!(10))[:digit:]{2}T[:digit:](PE|RD)$" -> we take the folders that contain data for the PE (Premiere Estimation) or RD (Resultats Detailles) in the format e.g. 11T1PE (Première Estimation du T1 2011),
-  ## end we exclude data for the year 2010 for which data follows another classification
+                                                          pattern = regex_for_folder_names)
 
   #todo: to delete when other loaders created
   # production_data_folders <- stringr::str_subset(string = production_data_folders,
@@ -163,5 +181,21 @@ get_estimation_pattern_for_estimation_type <- function(estimation_type) {
     return("(PE|RD)")
   } else {
     stop("estimation_type can only be: \"PE\", \"RD\" or \"all\".")
+  }
+}
+
+get_regex_pattern_according_to_starting_period <- function(starting_period, estimation_pattern){
+    if (starting_period == "standard") {
+    return(paste0(".*/base(?!(1980)|(1995)|(2000))[:digit:]{4}/(?!(10))[:digit:]{2}T[:digit:]", estimation_pattern, "$"))
+    ## Note: the regex part: ".*/base(?!(1980)|(1995)|(2000))[:digit:]{4}/" means that we take the folders that contain data from base2005 and onward because the national accoutning conventions have changed, notably the classification for activity sectors
+    ## "(?!(10))[:digit:]{2}T[:digit:](PE|RD)$" -> we take the folders that contain data for the PE (Premiere Estimation) or RD (Resultats Detailles) in the format e.g. 11T1PE (Première Estimation du T1 2011),
+    ## end we exclude data for the year 2010 (of base2005) for which data follows another classification
+  } else if (starting_period == "base2000") {
+    return(paste0(".*/base(?!(1980)|(1995))[:digit:]{4}/[:digit:]{2}T[:digit:]", estimation_pattern, "$"))
+    ## Note: compared to the regex for the standard starting period, we keep the base2000 and the year 2010 from the base2005
+    ## For now, that should only be used for PIB data
+  } else {
+    stop("Pour l'argument starting_period de la fonction get_regex_pattern_according_to_starting_period() appelée par la fonction get_national_accounting_data_files(): choisissez \"standard\" ou \"base2000\".
+    On notera qu'à ce stade, seules les données de PIB peuvent commencer à la base 2000, toutes les autres séries doivent commencer en 2011 (base2005) car les conventions ont sensiblement changées et notamment la classification des secteurs d'activité.")
   }
 }

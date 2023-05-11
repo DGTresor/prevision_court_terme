@@ -57,20 +57,20 @@ BDF_DIMENSIONS_LIST <- list(
 #   return(file_path)
 # }
 
-get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
-  # get all the folders' names in the folder
-  files_names <- list.files(path = folder_path, full.names = FALSE)
-
-  # remove certain specific files if needed
-  if (!is.null(exclusion_list)) {
-    files_names <- files_names[!(files_names %in% exclusion_list)]
-  }
-
-  # the current alphanumeric classification enables that the last folder is the most recent
-  most_recent_file <- file.path(folder_path, files_names[length(files_names)])
-
-  return(most_recent_file)
-}
+# get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
+#   # get all the folders' names in the folder
+#   files_names <- list.files(path = folder_path, full.names = FALSE)
+#
+#   # remove certain specific files if needed
+#   if (!is.null(exclusion_list)) {
+#     files_names <- files_names[!(files_names %in% exclusion_list)]
+#   }
+#
+#   # the current alphanumeric classification enables that the last folder is the most recent
+#   most_recent_file <- file.path(folder_path, files_names[length(files_names)])
+#
+#   return(most_recent_file)
+# }
 
 load_pmi_data_from_excel_all_dimensions <- function(path_to_data, column_list, dimensions_label = NULL) {
   suppressMessages(imported_data <- readxl::read_xlsx(path = path_to_data, sheet = "France", skip = 1)[-c(1:4),]) # suppress messages to prevent message of columns' type and column renaming

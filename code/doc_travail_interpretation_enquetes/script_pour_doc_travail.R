@@ -18,6 +18,7 @@ library(zoo)
 
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_preparator.R", encoding = "utf-8")
+source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
@@ -32,10 +33,9 @@ if (LOAD_EXISTING_DATA) {
   load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
 } else {
   # read data --------------------
-  pib_data <- most_recent_compta_nat_data_loader(folder_path = PIB_DATA_FOLDER,
+  pib_data <- most_recent_compta_nat_data_loader(folder_path = NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014,
                                                  file_name = PIB_FILE_NAME,
-                                                 dimensions_list = PIB_DIMENSIONS,
-                                                 dimensions_list_name = "default")
+                                                 dimensions_list = PIB_DIMENSIONS)
 
   pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
                                                       column_list = PMI_DIMENSIONS_LIST) %>%
