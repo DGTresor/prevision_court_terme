@@ -168,7 +168,7 @@ get_transformation_function <- function(transformation_type) {
 }
 
 
-get_variation_for <- function(data, variation_type, nbr_lag = 1, dimensions_to_transform = NULL, dimensions_to_exclude = NULL, add_option = FALSE, keep_prefix = FALSE) {
+get_variation_for <- function(data, variation_type, nbr_lag = 1, nbr_lead = 1, dimensions_to_transform = NULL, dimensions_to_exclude = NULL, add_option = FALSE, keep_prefix = FALSE) {
   # select the dimensions
   if (is.null(dimensions_to_transform)) {
     dimensions_to_transform <- unique(data$dimension)
@@ -192,8 +192,20 @@ get_variation_for <- function(data, variation_type, nbr_lag = 1, dimensions_to_t
       dplyr::group_by(dimension) %>%
       dplyr::mutate(variation = (value / dplyr::lag(value, n = nbr_lag)) - 1) %>%
       dplyr::ungroup()
+  } else if (variation_type == "lag") {
+    prefix <- paste0("lag", nbr_lag)
+    data_with_variation <- data_with_variation %>%
+      dplyr::group_by(dimension) %>%
+      dplyr::mutate(variation = dplyr::lag(value, n = nbr_lag)) %>%
+      dplyr::ungroup()
+  } else if (variation_type == "lead") {
+    prefix <- paste0("lead", nbr_lead)
+    data_with_variation <- data_with_variation %>%
+      dplyr::group_by(dimension) %>%
+      dplyr::mutate(variation = dplyr::lead(value, n = nbr_lead)) %>%
+      dplyr::ungroup()
   } else {
-    stop("Choisissez \"difference\" ou \"growth_rate\" comme argument de variation_type pour la fonction get_variation_for().")
+    stop("Choisissez \"difference\", \"growth_rate\", \"lag\" ou \"lead\" comme argument de variation_type pour la fonction get_variation_for().")
   }
   # combine the transformed series with the original data
   data_with_variation <- data_with_variation %>%
