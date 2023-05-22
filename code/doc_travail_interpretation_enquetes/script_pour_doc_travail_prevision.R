@@ -14,19 +14,12 @@ library(lubridate)
 library(stats)
 library(forecast)
 library(ggplot2)
-# source("./code/data_importator.R", encoding = "utf-8")
-# source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
-# source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
-# # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
-#
-# source("./code/scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8")
-# source("./code/scripts_from_prevision_production_manuf/data_transformation.R", encoding = "utf-8")
-# source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8")
 
 source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_preparator.R", encoding = "utf-8")
 
+source("./code/scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 
 # constants to define --------------------------------------------------------------------------------------------------
 UPDATE_REVISED_PIB_DATA <- FALSE
@@ -190,8 +183,102 @@ prevision_data <- full_data %>%
 
 # 4. do the prevision ---------------------------------------------------------------------------
 
-out_of_sample_current_quarter_nowcasting <- create_summary_for_several_simple_out_of_sample_nowcasting(y_var = "var1_PIB",
-                                                                                                       list_x_var = colnames(prevision_data)[!(colnames(prevision_data) %in% c("date", "var1_PIB", "var4_PIB"))],
-                                                                                                       reg_data = prevision_data,
-                                                                                                       window_size = 32) # Note: 32 quarters = 8 years
+real_time_out_of_sample_current_quarter_nowcasting <- create_summary_for_several_simple_out_of_sample_nowcasting(y_var = "var1_PIB",
+                                                                                                                 list_x_var = colnames(prevision_data)[!(colnames(prevision_data) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                                                                                                 reg_data = prevision_data,
+                                                                                                                 window_size = 32) # Note: 32 quarters = 8 years
 
+nowcasting_summaries <- real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
+                   rmse = Metrics::rmse(actual = expected_values, predicted = predicted_values),
+                   mae = Metrics::mae(actual = expected_values, predicted = predicted_values), .groups = "drop") %>%
+  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
+  dplyr::filter(rmse <= 0.0018) %>%
+  dplyr::arrange(horizon, rmse) %>%
+  dplyr::select(horizon, everything())
+
+best_models <- unique(nowcasting_summaries$dimension)
+
+expected_data <- real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::filter(dimension == "insee_global_m2") %>%  # we just need to take any one of the dimensions
+  dplyr::mutate(dimension = "expected") %>%
+  dplyr::select(date, dimension, expected_values) %>%
+  dplyr::rename(value = expected_values)
+
+graph_data <- real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::filter(dimension %in% best_models) %>%
+  dplyr::select(date, dimension, predicted_values) %>%
+  dplyr::rename(value = predicted_values) %>%
+  dplyr::bind_rows(expected_data) %>%
+  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
+  dplyr::mutate(horizon = ifelse(horizon == "ed", "expected", horizon))
+
+
+# graphes
+graph_donnees_conj(title = "Nowcasting hors échantillon du trimestre T",
+                   subtitle = "Données d'enquêtes au mois 1 du trimestre T",
+                   data = graph_data %>% filter(horizon %in% c("m1", "expected")),
+                   main_dimension = "expected",
+                   graph_source = "Insee, Banque de France, S&P, calculs DG Trésor",
+                   graph_saving = FALSE) +
+  scale_y_continuous(breaks = c(-0.001, 0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007),
+                     labels = scales::percent_format(accuracy = 0.1))
+
+graph_donnees_conj(title = "Nowcasting hors échantillon du trimestre T",
+                   subtitle = "Données d'enquêtes au mois 2 du trimestre T",
+                   data = graph_data %>% filter(horizon %in% c("m2", "expected")),
+                   main_dimension = "expected",
+                   graph_source = "Insee, Banque de France, S&P, calculs DG Trésor",
+                   graph_saving = FALSE) +
+  scale_y_continuous(breaks = c(-0.001, 0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007),
+                     labels = scales::percent_format(accuracy = 0.1))
+
+graph_donnees_conj(title = "Nowcasting hors échantillon du trimestre T",
+                   subtitle = "Données d'enquêtes au mois 3 du trimestre T",
+                   data = graph_data %>% filter(horizon %in% c("m3", "expected")),
+                   main_dimension = "expected",
+                   graph_source = "Insee, Banque de France, S&P, calculs DG Trésor",
+                   graph_saving = FALSE) +
+  scale_y_continuous(breaks = c(-0.001, 0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007),
+                     labels = scales::percent_format(accuracy = 0.1))
+
+graph_donnees_conj(title = "Nowcasting hors échantillon du trimestre T",
+                   subtitle = "Données d'enquêtes au mois 1 du trimestre T+1",
+                   data = graph_data %>% filter(horizon %in% c("lead", "expected")),
+                   main_dimension = "expected",
+                   graph_source = "Insee, Banque de France, S&P, calculs DG Trésor",
+                   graph_saving = FALSE) +
+  scale_y_continuous(breaks = c(-0.001, 0, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007),
+                     labels = scales::percent_format(accuracy = 0.1))
+
+
+# 5. compare with results with revised data ---------------------------------------------------------------------------
+
+revised_pib_for_prev <- revised_pib %>%
+  dplyr::mutate(var1_PIB_revised = value / lag(value) - 1) %>%
+  dplyr::select(date, var1_PIB_revised)
+
+prevision_data_rev <- prevision_data %>%
+  dplyr::full_join(revised_pib_for_prev, by = "date") %>%
+  dplyr::filter(date >= lubridate::ymd("2007-10-01") & date <= lubridate::ymd("2019-10-01"))
+
+pseudo_real_time_out_of_sample_current_quarter_nowcasting <- create_summary_for_several_simple_out_of_sample_nowcasting(y_var = "var1_PIB_revised",
+                                                                                                                        list_x_var = colnames(prevision_data_rev)[!(colnames(prevision_data_rev) %in% c("date", "var1_PIB", "var4_PIB", "var1_PIB_revised"))],
+                                                                                                                        reg_data = prevision_data_rev,
+                                                                                                                        window_size = 32) # Note: 32 quarters = 8 years
+
+nowcasting_summaries_pseudo_real_time <- pseudo_real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
+                   rmse = Metrics::rmse(actual = expected_values, predicted = predicted_values),
+                   mae = Metrics::mae(actual = expected_values, predicted = predicted_values), .groups = "drop") %>%
+  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
+  dplyr::filter(rmse <= 0.0027) %>%
+  dplyr::arrange(horizon, rmse) %>%
+  dplyr::select(horizon, everything())
+
+best_models_pseudo_real_time <- unique(nowcasting_summaries_pseudo_real_time$dimension)
+
+
+# END - export data -------------------------------------------------------------------------------
