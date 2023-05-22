@@ -145,7 +145,7 @@ summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_d
   # Following occurences
   for (i in (window_size + 1):nrow(reg_data)) {
     reg_data_i <- reg_data[(i - window_size + 1):i,]
-    reg_model_i <- lm(reg_data_i[[y_var]] ~ reg_data_i[[x_var]], data = reg_data_i)
+    reg_model_i <- lm(as.formula(paste0(y_var, " ~ ", x_var)), data = reg_data_i)
     new_df <- data.frame(dimension = dimension_name,
                          date = reg_data$date[[i]],
                          constant = reg_model_i$coefficients[[1]],
@@ -210,44 +210,82 @@ summarise_simple_regression_to_estimate_quarterly_variation_of_GDP_with_ga <- fu
   return(regression_summary)
 }
 
-# functions for regressions --------------------------------------------------------------------------------------------
+# functions for previsions --------------------------------------------------------------------------------------------
 
-# summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL) {
-#   # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
-#   # unspecific name
-#   if (is.null(dimension_name)) {
-#     dimension_name <- x_var
-#   }
-#   # First occurence
-#   reg_data_1 <- reg_data[1:window_size,]
-#   reg_model <- lm(reg_data_1[[y_var]] ~ reg_data_1[[x_var]], data = reg_data_1)
-#   regression_summary <- data.frame(dimension = dimension_name,
-#                                    date = reg_data$date[[window_size]],
-#                                    constant = reg_model$coefficients[[1]],
-#                                    coefficient = reg_model$coefficients[[2]],
-#                                    adjusted_r_squared = summary(reg_model)$adj.r.squared,
-#                                    rmse = Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
-#                                    mae = Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
-#   )
-#   # Check if there is no rolling window
-#   if (window_size == nrow(reg_data)){
-#     return(regression_summary)
-#   }
-#   # Following occurences
-#   for (i in (window_size + 1):nrow(reg_data)) {
-#     reg_data_i <- reg_data[(i - window_size + 1):i,]
-#     reg_model_i <- lm(reg_data_i[[y_var]] ~ reg_data_i[[x_var]], data = reg_data_i)
-#     new_df <- data.frame(dimension = dimension_name,
-#                          date = reg_data$date[[i]],
-#                          constant = reg_model_i$coefficients[[1]],
-#                          coefficient = reg_model_i$coefficients[[2]],
-#                          adjusted_r_squared = summary(reg_model_i)$adj.r.squared,
-#                          rmse = Metrics::rmse(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
-#                          mae = Metrics::mae(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values)
-#     )
-#     regression_summary <- regression_summary %>%
-#       dplyr::bind_rows(new_df)
-#     rm(reg_model_i)
-#   }
-#   return(regression_summary)
-# }
+create_summary_for_several_simple_out_of_sample_nowcasting <- function(y_var, list_x_var, reg_data, window_size, dimension_name = NULL, rolling_window = FALSE, list_of_outliers_dates = list()) {
+  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  regressions_summary <- summarise_simple_out_of_sample_nowcasting(y_var, list_x_var[[1]], reg_data, window_size, dimension_name, rolling_window, list_of_outliers_dates)
+
+  for (x_var in list_x_var[2:length(list_x_var)]) {
+    regressions_summary <- regressions_summary %>%
+      dplyr::bind_rows(summarise_simple_out_of_sample_nowcasting(y_var, x_var, reg_data, window_size, dimension_name, rolling_window, list_of_outliers_dates))
+  }
+  return(regressions_summary)
+}
+
+
+summarise_simple_out_of_sample_nowcasting <- function(y_var, x_var, reg_data, window_size, dimension_name = NULL, rolling_window = FALSE, list_of_outliers_dates = list()) {
+  # NOTE: this function only works in the specific case of a simple model with a constant and one explanatory variable
+  # unspecific name
+  if (is.null(dimension_name)) {
+    dimension_name <- x_var
+  }
+  # First occurence
+  train_set <- reg_data[1:window_size,]
+  reg_model <- lm(as.formula(paste0(y_var, " ~ ", x_var)), data = train_set)
+  regression_summary <- data.frame(dimension = dimension_name,
+                                   date = reg_data$date[[window_size + 1]],
+                                   constant = reg_model$coefficients[[1]],
+                                   coefficient = reg_model$coefficients[[2]],
+                                   adjusted_r_squared = summary(reg_model)$adj.r.squared,
+                                   reg_rmse = Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
+                                   reg_mae = Metrics::mae(actual = reg_model$model[[1]], predicted = reg_model$fitted.values),
+                                   predicted_values = predict(reg_model, reg_data[window_size + 1,])[[1]],
+                                   expected_values = reg_data[[y_var]][window_size + 1]
+  )
+  # Check if there is no rolling/expanding window
+  if (window_size == nrow(reg_data)) {
+    return(regression_summary)
+  }
+  # Following occurences
+  for (i in (window_size + 1):(nrow(reg_data) - 1)) {
+    # prevent to forecast an outlier
+    if (reg_data$date[[i + 1]] %in% list_of_outliers_dates) {
+      new_df <- data.frame(dimension = dimension_name,
+                           date = reg_data$date[[i + 1]],
+                           constant = NA_real_,
+                           coefficient = NA_real_,
+                           adjusted_r_squared = NA_real_,
+                           reg_rmse = NA_real_,
+                           reg_mae = NA_real_,
+                           predicted_values = NA_real_,
+                           expected_values = reg_data[[y_var]][i + 1]
+      )
+    } else {
+      # check if there is a rolling or an expanding window
+      if (rolling_window) {
+        start_period <- (i - window_size + 1)
+      } else {
+        start_period <- 1
+      }
+      # perform the forecast
+      train_set_i <- reg_data[start_period:i,]
+      reg_model_i <- lm(as.formula(paste0(y_var, " ~ ", x_var)), data = train_set_i)
+      new_df <- data.frame(dimension = dimension_name,
+                           date = reg_data$date[[i + 1]],
+                           constant = reg_model_i$coefficients[[1]],
+                           coefficient = reg_model_i$coefficients[[2]],
+                           adjusted_r_squared = summary(reg_model_i)$adj.r.squared,
+                           reg_rmse = Metrics::rmse(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
+                           reg_mae = Metrics::mae(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
+                           predicted_values = predict(reg_model_i, reg_data[i + 1,])[[1]],
+                           expected_values = reg_data[[y_var]][i + 1]
+      )
+      rm(reg_model_i)
+    }
+    regression_summary <- regression_summary %>%
+      dplyr::bind_rows(new_df)
+  }
+  return(regression_summary)
+}
+
