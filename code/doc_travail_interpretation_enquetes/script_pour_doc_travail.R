@@ -40,7 +40,7 @@ if (LOAD_EXISTING_DATA) {
   pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
                                                       column_list = PMI_DIMENSIONS_LIST) %>%
     filter(dimension %in% c("pmi_composite", "pmi_industrie", "pmi_services"))
-  print("Dans nos fichiers, nous n'avons pas de données PIB avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
+  print("Dans nos fichiers, nous n'avons pas de données PMI avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
 
   insee_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
                                         column_list = INSEE_DIMENSIONS_LIST,
