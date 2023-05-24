@@ -142,10 +142,10 @@ data_for_excel_figure_2 <- full_data %>%
   dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
   dplyr::select(date, var1_PIB, var4_PIB)
 data_for_excel_figure_2 <- data_for_excel_figure_2 %>%
-  dplyr::mutate(fig_2a_borne_sup = rep(0.008588097, times = nrow(data_for_excel_figure_2)),   # les bornes correspondent à la moyenne + écart-type
-                fig_2a_borne_inf = rep(-0.001232349, times = nrow(data_for_excel_figure_2)),
-                fig_2b_borne_sup = rep(0.03003745, times = nrow(data_for_excel_figure_2)),
-                fig_2b_borne_inf = rep(0.00073243, times = nrow(data_for_excel_figure_2)))
+  dplyr::mutate(fig_2a_borne_sup = rep(0.01349832, times = nrow(data_for_excel_figure_2)),   # les bornes correspondent à la moyenne + écart-type
+                fig_2a_borne_inf = rep(-0.006142572, times = nrow(data_for_excel_figure_2)),
+                fig_2b_borne_sup = rep(0.04468996, times = nrow(data_for_excel_figure_2)),
+                fig_2b_borne_inf = rep(-0.01392008, times = nrow(data_for_excel_figure_2)))
 
 data_graph_evol_PIB <- data_for_excel_figure_2 %>%
   dplyr::select(date, var1_PIB, var4_PIB) %>%
@@ -156,8 +156,8 @@ data_graph_evol_PIB <- data_for_excel_figure_2 %>%
 
 # Figure 2a Variation trimestrielle du PIB trimestriel français
 ## bornes préalablement choisies : [-0.006;0.011]
-## 1 écart type : [-0.001232349;0.008588097] -> trop étroit => on choisit ça quand même
-## 2 écart type : [-0.006142572;0.01349832] -> pas mal
+## 1 écart type : [-0.001232349;0.008588097] -> trop étroit
+## 2 écart type : [-0.006142572;0.01349832] -> pas mal => on choisit ça
 ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
   aes(x = quarter, y = value) +
   geom_line(color = "darkblue") +
@@ -170,13 +170,13 @@ ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02),
                      labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
   zoo::scale_x_yearqtr(format = "T%q %Y") +
-  geom_hline(yintercept = 0.008588097, color = "darkblue", linetype = "longdash") +
-  geom_hline(yintercept = -0.001232349, color = "darkblue", linetype = "longdash")
+  geom_hline(yintercept = 0.01349832, color = "darkblue", linetype = "longdash") +
+  geom_hline(yintercept = -0.006142572, color = "darkblue", linetype = "longdash")
 
 # Figure 2b Glissement annuel du PIB trimestriel français
 ## bornes préalablement choisies : [-0.001;0.031]
-## 1 écart type : [0.00073243;0.03003745] -> parfait => on choisit ça
-## 2 écart type : [-0.01392008;0.04468996] -> trop large, notamment pour la période 2000 qui n'est presque pas englobée
+## 1 écart type : [0.00073243;0.03003745] -> parfait
+## 2 écart type : [-0.01392008;0.04468996] -> trop large, notamment pour la période 2000 qui n'est presque pas englobée  => on choisit ça quand même
 ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
   aes(x = quarter, y = value) +
   geom_line(color = "darkorange") +
@@ -189,8 +189,8 @@ ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
   scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
   zoo::scale_x_yearqtr(format = "T%q %Y") +
-  geom_hline(yintercept = 0.03003745, color = "darkorange", linetype = "longdash") +
-  geom_hline(yintercept = 0.00073243, color = "darkorange", linetype = "longdash")
+  geom_hline(yintercept = 0.04468996, color = "darkorange", linetype = "longdash") +
+  geom_hline(yintercept = -0.01392008, color = "darkorange", linetype = "longdash")
 
 ```
 
