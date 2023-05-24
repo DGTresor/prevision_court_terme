@@ -244,7 +244,7 @@ summarise_simple_out_of_sample_nowcasting <- function(y_var, x_var, reg_data, wi
                                    expected_values = reg_data[[y_var]][window_size + 1]
   )
   # Check if there is no rolling/expanding window
-  if (window_size == nrow(reg_data)) {
+  if (window_size == (nrow(reg_data) - 1)) {
     return(regression_summary)
   }
   # Following occurences
@@ -288,4 +288,67 @@ summarise_simple_out_of_sample_nowcasting <- function(y_var, x_var, reg_data, wi
   }
   return(regression_summary)
 }
+
+
+# special function # TODO: add more explanation
+
+create_reality_summary <- function(data_source, files_list, file_type2files_list, file_name, dimensions_list, prevision_data, quarters_to_predict) {
+  for (i in 1:17) {
+    # folder_root <- ifelse(i <= 11, file.path(NATIONAL_ACCOUNTING_DATA_FOLDER, "base2010"), NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014) #ATTENTION: magic number linked to quarters_to_load (base 2010 up to 18T1PE)
+    # if (i <= 15) {
+    #   revised_pib <- csv_pre_19T2RD_national_accounting_loader(file_path = file.path(folder_root, quarters_to_load[i]),
+    #                                                            folder_name = quarters_to_load[i],
+    #                                                            file_name = "erevolch",
+    #                                                            dimensions_list = PIB_DIMENSIONS,
+    #                                                            dimensions_list_name = "pre_19T2RD_csv")
+    # } else {
+    #   revised_pib <- xls_national_accounting_loader(file_path = file.path(folder_root, quarters_to_load[i]),
+    #                                                 folder_name = quarters_to_load[i],
+    #                                                 file_name = "erevolch",
+    #                                                 dimensions_list = PIB_DIMENSIONS,
+    #                                                 dimensions_list_name = "$post_19T2RD_xls")
+    # }
+
+    loader_provider <- get_loader_provider(data_source = data_source)
+    folder_name <- names(files_list)[i]
+    print(paste("On s'occupe du dossier :", folder_name))
+    loader <- get_loader(folder_name, file_type2files_list, loader_provider)
+    revised_pib <- loader(files_list[[folder_name]], folder_name, file_name, dimensions_list)
+
+    revised_pib_for_prev <- revised_pib %>%
+      dplyr::mutate(var1_PIB_revised = value / lag(value) - 1) %>%
+      dplyr::select(date, var1_PIB_revised)
+
+    max_date <- quarters_to_predict[i]
+
+    prevision_data_rev <- prevision_data %>%
+      dplyr::full_join(revised_pib_for_prev, by = "date") %>%
+      dplyr::arrange(date) %>%
+      dplyr::filter(date >= lubridate::ymd("2007-10-01") & date <= max_date)
+
+    if (i == 1) {
+
+      # first occurence
+      if (nrow(prevision_data_rev) != 32 + 1) { stop("Problem in the sample") }
+      reality_exercise_summary <- create_summary_for_several_simple_out_of_sample_nowcasting(y_var = "var1_PIB_revised",
+                                                                                             list_x_var = colnames(prevision_data_rev)[!(colnames(prevision_data_rev) %in% c("date", "var1_PIB", "var4_PIB", "var1_PIB_revised"))],
+                                                                                             reg_data = prevision_data_rev,
+                                                                                             window_size = 32) # Note: 32 quarters = 8 years
+    } else {
+      # other occurences
+      if (nrow(prevision_data_rev) != 32 + i) { stop(paste("Prévision", max_date, ": Problem in the sample")) }
+      new_summary <- create_summary_for_several_simple_out_of_sample_nowcasting(y_var = "var1_PIB_revised",
+                                                                                list_x_var = colnames(prevision_data_rev)[!(colnames(prevision_data_rev) %in% c("date", "var1_PIB", "var4_PIB", "var1_PIB_revised"))],
+                                                                                reg_data = prevision_data_rev,
+                                                                                window_size = 32 + i - 1) # Note: 32 quarters = 8 years
+      reality_exercise_summary <- reality_exercise_summary %>%
+        dplyr::bind_rows(new_summary)
+      rm(new_summary)
+    }
+  }
+  return(reality_exercise_summary)
+}
+
+
+
 

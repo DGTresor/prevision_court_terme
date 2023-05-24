@@ -327,6 +327,44 @@ table_model_stability_hlead <- table_model_stability %>%
   dplyr::filter(reg_rmse == min(reg_rmse)) %>%
   dplyr::select(date, dimension, reg_rmse)
 
+# 7. Reproduce reality of iterative pseudo-real time exercises  -----------------------------------
+
+QUARTERS_TO_LOAD <- c("15T3PE", "15T4PE", "16T1PE", "16T2PE", "16T3PE", "16T4PE", "17T1PE", "17T2PE", "17T3PE", "17T4PE", "18T1PE", "18T2PE", "18T3PE", "18T4PE", "19T1PE", "19T2PE", "19T3PE")
+QUARTERS_TO_PREDICT <- c("2015-10-01", "2016-01-01", "2016-04-01", "2016-07-01", "2016-10-01", "2017-01-01", "2017-04-01", "2017-07-01", "2017-10-01", "2018-01-01", "2018-04-01", "2018-07-01", "2018-10-01", "2019-01-01", "2019-04-01", "2019-07-01", "2019-10-01")
+
+PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE <- get_national_accounting_data_files(NATIONAL_ACCOUNTING_DATA_FOLDER,
+                                                                            estimation_type = "PE",                                         # we keep only the folders containing the 1st estimation of the quarterly accounts (PE)
+                                                                            subset_regex = ".*/(?!((0.)|(11)|(12)|(13)|(14)|(2.)))[:digit:]{2}T[:digit:]PE"     # we take data only from 2015T1; we keep data only up to 2019T4
+)
+PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE <- PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE[3:(length(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE) - 1)] # we start from 2015T3 and up to 2019T3
+
+
+PIB_FILES_TYPES_FOR_REALITY_EXERCISE <- list("pre_19T2RD_csv" = stringr::str_subset(names(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE), "(^1(?!((0|1|2|3|4).*)|(5T1PE)|(5T2PE)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*)"),
+                                             "post_19T2RD_xls" = stringr::str_subset(names(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE), "^((19T2RD)|(19T3PE))"))
+
+
+reality_nowcasting_exercise <- create_reality_summary(data_source = "national_accounting",
+                                                      files_list = PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE,
+                                                      file_type2files_list = PIB_FILES_TYPES_FOR_REALITY_EXERCISE,
+                                                      file_name = PIB_FILE_NAME,
+                                                      dimensions_list = PIB_DIMENSIONS,
+                                                      prevision_data = prevision_data,
+                                                      quarters_to_predict = QUARTERS_TO_PREDICT)
+
+
+nowcasting_summaries_reality_exercise <- reality_nowcasting_exercise %>%
+  dplyr::full_join(PE_expected_values, by = "date")
+nowcasting_summaries_reality_exercise <- nowcasting_summaries_reality_exercise %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
+                   # reg_rmse = mean(reg_rmse),
+                   # reg_mae = mean(reg_mae),
+                   rmse = Metrics::rmse(actual = expected_values_PE, predicted = predicted_values),     # ATTENTION! we use expected_values_PE
+                   mae = Metrics::mae(actual = expected_values_PE, predicted = predicted_values), .groups = "drop") %>%   # ATTENTION! we use expected_values_PE
+  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
+  dplyr::filter(rmse <= 0.0018) %>%
+  dplyr::arrange(horizon, rmse) %>%
+  dplyr::select(horizon, everything())
 
 # END - export data -------------------------------------------------------------------------------
 
@@ -362,6 +400,7 @@ writexl::write_xlsx(list("data_figure_prev_m1" = data_for_excel_figure_m1,
                          "data_tableau_1" = nowcasting_summaries,
                          "data_tableau_2" = nowcasting_summaries_pseudo_real_time,
                          "data_tableau_3" = nowcasting_summaries_pseudo_real_time_PE,
+                         "data_tableau_4" = nowcasting_summaries_reality_exercise,
                          "data_tableau_stabilite_1" = table_model_stability_h1,
                          "data_tableau_stabilite_2" = table_model_stability_h2,
                          "data_tableau_stabilite_3" = table_model_stability_h3,
