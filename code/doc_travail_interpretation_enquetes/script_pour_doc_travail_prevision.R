@@ -35,15 +35,15 @@ if (UPDATE_REVISED_PIB_DATA) {
   # revised_pib <- most_recent_compta_nat_data_loader(folder_path = NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014,
   #                                                          file_name = PIB_FILE_NAME,
   #                                                          dimensions_list = PIB_DIMENSIONS)
-  revised_pib <- xls_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "19T4PE"),
-                                                folder_name = "19T4PE",
+  revised_pib <- xls_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
+                                                folder_name = "23T1PE",
                                                 file_name = "erevolch",
                                                 dimensions_list = PIB_DIMENSIONS,
                                                 dimensions_list_name = "post_19T2RD")
 
   save(revised_pib, file = paste0("./data/", "revised_pib_", max(unique(revised_pib[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
 } else {
-  load("./data/revised_pib_2019-10-01PE.RData")
+  load("./data/revised_pib_2023-01-01PE.RData")
 }
 
 # 2. load nonrevised pib ----------------------------------------------------------------------------------------
@@ -146,7 +146,7 @@ prevision_data <- full_data %>%
   dplyr::filter(date >= lubridate::ymd("2007-10-01") & date <= lubridate::ymd("2019-10-01"))
 # %>%
 #   dplyr::mutate_if(is.numeric, list(~ifelse(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01")), NA_real_, .))) # remove outliers
-#
+
 
 ## OLD method to correct for change bases -------------------
 # TODO: create a function for that (across columns) in data_preparator.R // see which method is the best [utile uniquement pour voir les révisions]
@@ -268,17 +268,103 @@ pseudo_real_time_out_of_sample_current_quarter_nowcasting <- create_summary_for_
                                                                                                                         reg_data = prevision_data_rev,
                                                                                                                         window_size = 32) # Note: 32 quarters = 8 years
 
+# 5.1. estimation of the model in pseudp real time - comparison with revised data
 nowcasting_summaries_pseudo_real_time <- pseudo_real_time_out_of_sample_current_quarter_nowcasting %>%
   dplyr::group_by(dimension) %>%
   dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
                    rmse = Metrics::rmse(actual = expected_values, predicted = predicted_values),
                    mae = Metrics::mae(actual = expected_values, predicted = predicted_values), .groups = "drop") %>%
   dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
-  dplyr::filter(rmse <= 0.0027) %>%
+  dplyr::filter(rmse <= 0.0033) %>%
   dplyr::arrange(horizon, rmse) %>%
   dplyr::select(horizon, everything())
 
-best_models_pseudo_real_time <- unique(nowcasting_summaries_pseudo_real_time$dimension)
+# 5.1. estimation of the model in pseudp real time - comparison with non-revised data
+PE_expected_values <- real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::filter(dimension == "insee_global_m1") %>%  # just take any dimension
+  dplyr::select(date, expected_values) %>%
+  dplyr::rename(expected_values_PE = expected_values)
+
+nowcasting_summaries_pseudo_real_time_PE <- pseudo_real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::full_join(PE_expected_values, by = "date")
+nowcasting_summaries_pseudo_real_time_PE <- nowcasting_summaries_pseudo_real_time_PE %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
+                   rmse = Metrics::rmse(actual = expected_values_PE, predicted = predicted_values),     # ATTENTION! we use expected_values_PE
+                   mae = Metrics::mae(actual = expected_values_PE, predicted = predicted_values), .groups = "drop") %>%   # ATTENTION! we use expected_values_PE
+  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
+  dplyr::filter(rmse <= 0.0018) %>%
+  dplyr::arrange(horizon, rmse) %>%
+  dplyr::select(horizon, everything())
+
+
+# 6. CHECK stability of model selection ---------------------------------------------------------------------------
+
+table_model_stability <- real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)"))
+
+table_model_stability_h1 <- table_model_stability %>%
+  dplyr::filter(horizon == "m1") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
+
+table_model_stability_h2 <- table_model_stability %>%
+  dplyr::filter(horizon == "m2") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
+
+table_model_stability_h3 <- table_model_stability %>%
+  dplyr::filter(horizon == "m3") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
+
+table_model_stability_hlead <- table_model_stability %>%
+  dplyr::filter(horizon == "lead") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
 
 
 # END - export data -------------------------------------------------------------------------------
+
+data_for_excel_figure_m1 <- graph_data %>%
+  dplyr::filter(horizon %in% c("expected", "m1")) %>%
+  dplyr::select(-horizon) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value)
+
+data_for_excel_figure_m2 <- graph_data %>%
+  dplyr::filter(horizon %in% c("expected", "m2")) %>%
+  dplyr::select(-horizon) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value)
+
+data_for_excel_figure_m3 <- graph_data %>%
+  dplyr::filter(horizon %in% c("expected", "m3")) %>%
+  dplyr::select(-horizon) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value)
+
+data_for_excel_figure_lead <- graph_data %>%
+  dplyr::filter(horizon %in% c("expected", "lead")) %>%
+  dplyr::select(-horizon) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = value)
+
+
+writexl::write_xlsx(list("data_figure_prev_m1" = data_for_excel_figure_m1,
+                         "data_figure_prev_m2" = data_for_excel_figure_m2,
+                         "data_figure_prev_m3" = data_for_excel_figure_m3,
+                         "data_figure_prev_lead" = data_for_excel_figure_lead,
+                         "data_tableau_1" = nowcasting_summaries,
+                         "data_tableau_2" = nowcasting_summaries_pseudo_real_time,
+                         "data_tableau_3" = nowcasting_summaries_pseudo_real_time_PE,
+                         "data_tableau_stabilite_1" = table_model_stability_h1,
+                         "data_tableau_stabilite_2" = table_model_stability_h2,
+                         "data_tableau_stabilite_3" = table_model_stability_h3,
+                         "data_tableau_stabilite_4" = table_model_stability_hlead),
+                    path = "./code/doc_travail_interpretation_enquetes/output/prevision_output_for_graphs.xlsx",
+                    col_names = TRUE, format_headers = FALSE)
