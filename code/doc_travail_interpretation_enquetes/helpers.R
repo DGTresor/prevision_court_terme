@@ -18,7 +18,7 @@ PATH_TO_PMI_DATA <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/6. Enquêtes 
 PATH_TO_FR_DEROULEUR <- list(path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/FR_Dérouleur.xlsx",
                              sheet = "Données enquêtes")
 
-PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
+# PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
 PMI_DIMENSIONS_LIST <- list(
   "Composite" = "composite",
   "industrie" = "industrie", # Pour "Synthétique industrie"

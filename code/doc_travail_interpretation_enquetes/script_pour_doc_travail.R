@@ -26,6 +26,7 @@ source("./code/scripts_from_automatisation_reactions/general_graph_functions.R",
 # constants ------------------------------------------------------------------------------------------------------------
 
 LOAD_EXISTING_DATA <- TRUE      # if FALSE, update data
+PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
 
 # load data ------------------------------------------------------------------------------------------------------------
 

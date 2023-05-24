@@ -298,7 +298,7 @@ nowcasting_summaries_pseudo_real_time_PE <- nowcasting_summaries_pseudo_real_tim
   dplyr::select(horizon, everything())
 
 
-# 6. CHECK stability of model selection ---------------------------------------------------------------------------
+# 6. Check stability of model selection ---------------------------------------------------------------------------
 
 table_model_stability <- real_time_out_of_sample_current_quarter_nowcasting %>%
   dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)"))
