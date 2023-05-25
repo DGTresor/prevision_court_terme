@@ -47,6 +47,93 @@ get_changing_base_shift <- function(df_with_revised_and_nonrevised_data, start_p
   return(changing_base_effect)
 }
 
+get_quarterly_variation_for_nonrevised_monthly_data <- function(data, month_position_of_quarters = NULL, quarterly_variation_column_name = NULL, keep_level_columns = FALSE) {
+  # TODO: do the case for month_position_of_quarters = 0; not by default
+  # TODO: enable when there is no dimension column in the dataframe
+
+  # ensure that we have enough lags to calculate quarterly variation
+  ## TODO: can be improved to depend on the month_position_of_quarters
+  if (sum(c("t", "t_1", "t_2", "t_3", "t_4", "t_5") %in% names(data)) != 6) {
+    stop("We need at least 6 lags in nonrevised data. In the construct_nonrevised_data_from_scratch functions, please set the number_previous_values argument at least to 6.")
+  }
+
+  # ensure that month_position_of_quarters %in% c(1,2,3)
+  if (!is.null(month_position_of_quarters)) {
+    if (!(month_position_of_quarters %in% c(1, 2, 3))) {
+      stop("In the function get_quarterly_variation_for_nonrevised_monthly_data(), month_position_of_quarters argument must be 1, 2 or 3.")
+    }
+  }
+
+  # get quarterly data
+  quarterly_data <- month_to_quarter_for_nonrevised_data(data, month_position_of_quarters = month_position_of_quarters) %>%
+    dplyr::group_by(dimension) %>%
+    dplyr::arrange(date)
+
+  # get the month_position_of_quarters
+  if (is.null(month_position_of_quarters)) {
+    month_position_of_quarters <- unique(quarterly_data$month_position)
+  }
+
+  # calculate quarterly variation
+  if (month_position_of_quarters == 1) {
+    quarterly_data <- quarterly_data %>%
+      dplyr::mutate(var1 = (t * 3) / (t_1 + t_2 + t_3) - 1)
+    print("Un acquis est calculé au mois 1 puisque le month_position_of_quarters = 1.")
+  } else if (month_position_of_quarters == 2) {
+    quarterly_data <- quarterly_data %>%
+      dplyr::mutate(var1 = (t * 2 + t_1) / (t_2 + t_3 + t_4) - 1)
+    print("Un acquis est calculé au mois 2 puisque le month_position_of_quarters = 1.")
+  } else {
+    # this is the case month_position_of_quarters == 3
+    quarterly_data <- quarterly_data %>%
+      dplyr::mutate(var1 = (t + t_1 + t_2) / (t_3 + t_4 + t_5) - 1)
+  }
+
+  # clean data
+  if (!is.null(quarterly_variation_column_name)) {
+    names(quarterly_data)[names(quarterly_data) == "var1"] <- paste("var1", quarterly_variation_column_name, sep = "_")
+  }
+  if (!keep_level_columns) {
+    quarterly_data <- quarterly_data %>%
+      dplyr::select(-matches("^t.*"))
+  }
+  quarterly_data <- quarterly_data %>%
+    dplyr::select(-month_position) %>%
+    ungroup()
+
+    return(quarterly_data)
+}
+
+month_to_quarter_for_nonrevised_data <- function(data, month_position_of_quarters = NULL) {
+  # TODO: do the case for month_position_of_quarters = 0; not by default
+  quarterly_data <- data %>%
+    dplyr::mutate(month = lubridate::month(date),
+                  month_position = dplyr::case_when(month %in% c(1, 4, 7, 10) ~ 1,
+                                                    month %in% c(2, 5, 8, 11) ~ 2,
+                                                    month %in% c(3, 6, 9, 12) ~ 3))
+
+  # define which month position we want to keep
+  if (is.null(month_position_of_quarters)) {
+    month_position_of_quarters <- quarterly_data$month_position[quarterly_data$date == max(unique(quarterly_data$date))]
+  } else {
+    # ensure that month_position_of_quarters %in% c(1,2,3)
+    if (!(month_position_of_quarters %in% c(1, 2, 3))) {
+      stop("In the function get_quarterly_variation_for_nonrevised_monthly_data(), month_position_of_quarters argument must be 1, 2 or 3.")
+    }
+  }
+
+  quarterly_data <- quarterly_data %>%
+    dplyr::filter(month_position == month_position_of_quarters) %>%
+    select(-month) %>%
+    monthly_date2quarterly_date()
+
+  message("\nUne colonne a été ajoutée dans ces données trimestrielles pour savoir, pour chaque trimestre, quelle est la position du mois.
+  C'est-à-dire si month_position = 2, alors la colonne t correspond aux données du 2e mois de chaque trimestre, la colonne t_1 correspond aux données du 1er mois de chaque trimestre,
+  la colonne t_2 correspond aux données du 3e mois du trimestre précédent de chaque trimestre, etc.
+  Si cette colonne n'est pas utile, la supprimer.")
+
+  return(quarterly_data)
+}
 
 ########################################################################################################################
 ########################################################################################################################
@@ -147,7 +234,9 @@ split_data_in_quarter_for_vintage <- function(data, lag_quarter = FALSE) {
 
 define_column_names_for_vintage_data <- function(dimension, month_position, number_data_columns, lag_quarter) {
   if (lag_quarter) {
-    data_columns <- paste0(dimension, "_m", month_position - 3 - seq(from = 0, to = (number_data_columns - 1)))
+    data_columns <- paste0(dimension, "_m", month_position -
+      3 -
+      seq(from = 0, to = (number_data_columns - 1)))
     message("Puisque l'option lag_quater a été mise à TRUE, le mois 3 du trimestre T est nommé ipi_m0. \nIl faut donc avancer les colonnes d'un trimestre (avec la fonction lead()) pour que l'ipi_m0 corresponde bien au m0 du trimestre T+1.")
   } else {
     data_columns <- paste0(dimension, "_m", month_position - seq(from = 0, to = (number_data_columns - 1)))

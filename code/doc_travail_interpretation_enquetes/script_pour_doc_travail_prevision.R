@@ -366,9 +366,92 @@ nowcasting_summaries_reality_exercise <- nowcasting_summaries_reality_exercise %
   dplyr::arrange(horizon, rmse) %>%
   dplyr::select(horizon, everything())
 
-# END - export data -------------------------------------------------------------------------------
 
-data_for_excel_figure_m1 <- graph_data %>%
+# 8. data for future leakage box  -----------------------------------
+
+# load revised data
+REDOWNLOAD_REVISED_IPI_DATA <- FALSE
+REDOWNLOAD_REVISED_PRODUCTION_DATA <- FALSE
+
+if (REDOWNLOAD_REVISED_IPI_DATA) {
+  revised_ipi <- generic_loader(file_path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Prod_manuf/02-IPI/mail_reaction_ipi/02-Envoi_Insee/2019/series_longues_ipi_201912.xls")
+  save(revised_ipi, file = paste0("./data/", "revised_ipi_", max(unique(revised_ipi[["date"]])), ".RData"))
+} else {
+  load("./data/revised_ipi_2019-12-01.RData")
+  revised_ipi_2019 <- revised_ipi
+}
+
+if (REDOWNLOAD_REVISED_PRODUCTION_DATA) {
+  revised_production <- xls_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "19T4PE"),
+                                                       folder_name = "14T4PE",
+                                                       file_name = "cprvolch",
+                                                       dimensions_list = PRODUCTION_DIMENSIONS,
+                                                       dimensions_list_name = "revised")
+  save(revised_production, file = paste0("./data/", "revised_production_", max(unique(revised_production[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
+} else {
+  load("./data/revised_production_2019-10-01PE.RData")
+  revised_production_2019 <- revised_production
+}
+
+# load mostrecent revised data
+load("./data/revised_production_2023-01-01PE.RData")
+revised_production_2023 <- revised_production
+load("./data/revised_ipi_2023-03-01.RData")
+revised_ipi_2023 <- revised_ipi
+
+# load nonrevised data
+load("./data/nonrevised_production_2023-01-01PE.RData")
+load("./data/nonrevised_ipi_2023-03-01.RData")
+
+nonrevised_production_for_prev <- nonrevised_production %>%
+  dplyr::select(date, dimension, t, t_1, t_4) %>%
+  dplyr::filter(dimension == "P1E_DIM") %>% # choose the manufacturing sector (CZ or DIM)
+  dplyr::arrange(date) %>%
+  dplyr::mutate(var1_production = t / t_1 - 1,
+                var4_production = t / t_4 - 1) %>%
+  dplyr::select(date, var1_production, var4_production)
+
+revised_production_for_prev_2019 <- revised_production_2019 %>%
+  dplyr::arrange(date) %>%
+  dplyr::mutate(var1_production_revised_2019 = value / lag(value) - 1) %>%
+  dplyr::select(date, var1_production_revised_2019)
+
+nonrevised_ipi_for_prev <- nonrevised_ipi %>%
+  dplyr::select(date, dimension, t, t_1, t_2, t_3, t_4, t_5) %>%
+  dplyr::filter(dimension == "CZ") %>% # choose the manufacturing sector (CZ)
+  dplyr::arrange(date) %>%
+  get_quarterly_variation_for_nonrevised_monthly_data(month_position_of_quarters = 3,
+                                                      quarterly_variation_column_name = "nonrevised_ipi") %>%
+  dplyr::select(-dimension)
+
+revised_ipi_for_prev_2019 <- revised_ipi_2019 %>%
+  dplyr::filter(dimension == "CZ") %>%
+  month_to_quarter(transformation_type = "sum") %>%
+  dplyr::mutate(var1_revised_ipi_2019 = value / lag(value) - 1) %>%
+  dplyr::select(date, var1_revised_ipi_2019)
+
+revised_production_for_prev_2023 <- revised_production_2023 %>%
+  dplyr::arrange(date) %>%
+  dplyr::mutate(var1_production_revised_2023 = value / lag(value) - 1) %>%
+  dplyr::select(date, var1_production_revised_2023)
+
+revised_ipi_for_prev_2023 <- revised_ipi_2023 %>%
+  dplyr::filter(dimension == "CZ") %>%
+  month_to_quarter(transformation_type = "sum") %>%
+  dplyr::mutate(var1_revised_ipi_2023 = value / lag(value) - 1) %>%
+  dplyr::select(date, var1_revised_ipi_2023)
+
+production_ipi_data <- nonrevised_production_for_prev %>%
+  dplyr::full_join(revised_production_for_prev_2019, by = "date") %>%
+  dplyr::full_join(nonrevised_ipi_for_prev, by = "date") %>%
+  dplyr::full_join(revised_ipi_for_prev_2019, by = "date") %>%
+  dplyr::full_join(revised_production_for_prev_2023, by = "date") %>%
+  dplyr::full_join(revised_ipi_for_prev_2023, by = "date") %>%
+  dplyr::filter(date >= lubridate::ymd("2011-01-01") & date <= lubridate::ymd("2019-10-01"))
+
+  # END - export data -------------------------------------------------------------------------------
+
+  data_for_excel_figure_m1 <- graph_data %>%
   dplyr::filter(horizon %in% c("expected", "m1")) %>%
   dplyr::select(-horizon) %>%
   tidyr::pivot_wider(names_from = dimension,
@@ -404,6 +487,7 @@ writexl::write_xlsx(list("data_figure_prev_m1" = data_for_excel_figure_m1,
                          "data_tableau_stabilite_1" = table_model_stability_h1,
                          "data_tableau_stabilite_2" = table_model_stability_h2,
                          "data_tableau_stabilite_3" = table_model_stability_h3,
-                         "data_tableau_stabilite_4" = table_model_stability_hlead),
+                         "data_tableau_stabilite_4" = table_model_stability_hlead,
+                         "data_future_leakage_box" = production_ipi_data),
                     path = "./code/doc_travail_interpretation_enquetes/output/prevision_output_for_graphs.xlsx",
                     col_names = TRUE, format_headers = FALSE)
