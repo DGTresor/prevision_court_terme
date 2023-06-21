@@ -10,6 +10,7 @@ data/
 tours_prevision/
 code/doc_travail_interpretation_enquetes/data/
 code/doc_travail_interpretation_enquetes/output/
+code/doc_travail_interpretation_enquetes/doc/
 *.docx
 *.xlsx
 *.html
