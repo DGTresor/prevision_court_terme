@@ -3,6 +3,8 @@
 # Created by: lphung
 # Created on: 08/05/2023
 
+# disclaimer -----------------------------------------------------------------------------------------------------------
+# Les résultats du document de travail ont été réalisés avec les données : "./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_20230522.RData"
 
 # initialise the environment -------------------------------------------------------------------------------------------
 rm(list = ls())
@@ -71,7 +73,7 @@ if (UPDATE_NONREVISED_PIB_DATA) {
 
   save(nonrevised_pib, file = paste0("./data/", "nonrevised_pib_", max(unique(nonrevised_pib[["date"]])), "PE.RData"))
 } else {
-  load("./data/nonrevised_pib_2019-10-01PE.RData")
+  load("./data/nonrevised_pib_2023-01-01PE.RData")
 }
 
 # 3. load survey data -----------------------------------------------------------------------------------------------
@@ -114,7 +116,7 @@ if (UPDATE_SURVEY_DATA) {
     convert_to_wide_format() %>%
     dplyr::select(-contains("construction"))
 
-  save(full_survey_data, file = "./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_20230522.RData")
+  save(full_survey_data, file = "./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_20230621.RData")
 
 } else {
   load("./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_20230522.RData")
@@ -279,7 +281,7 @@ nowcasting_summaries_pseudo_real_time <- pseudo_real_time_out_of_sample_current_
   dplyr::arrange(horizon, rmse) %>%
   dplyr::select(horizon, everything())
 
-# 5.1. estimation of the model in pseudp real time - comparison with non-revised data
+# 5.1. estimation of the model in pseudo real time - comparison with non-revised data
 PE_expected_values <- real_time_out_of_sample_current_quarter_nowcasting %>%
   dplyr::filter(dimension == "insee_global_m1") %>%  # just take any dimension
   dplyr::select(date, expected_values) %>%
@@ -449,9 +451,9 @@ production_ipi_data <- nonrevised_production_for_prev %>%
   dplyr::full_join(revised_ipi_for_prev_2023, by = "date") %>%
   dplyr::filter(date >= lubridate::ymd("2011-01-01") & date <= lubridate::ymd("2019-10-01"))
 
-  # END - export data -------------------------------------------------------------------------------
+# END - export data -------------------------------------------------------------------------------
 
-  data_for_excel_figure_m1 <- graph_data %>%
+data_for_excel_figure_m1 <- graph_data %>%
   dplyr::filter(horizon %in% c("expected", "m1")) %>%
   dplyr::select(-horizon) %>%
   tidyr::pivot_wider(names_from = dimension,

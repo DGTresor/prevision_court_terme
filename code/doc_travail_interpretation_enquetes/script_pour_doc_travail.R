@@ -3,6 +3,9 @@
 # Created by: lphung
 # Created on: 18/01/2023
 
+# disclaimer -----------------------------------------------------------------------------------------------------------
+# Les résultats du document de travail ont été réalisés avec les données : "./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230616_complete.RData"
+
 # clean environment ----------------------------------------------------------------------------------------------------
 rm(list = ls())
 
@@ -31,37 +34,44 @@ PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
 # load data ------------------------------------------------------------------------------------------------------------
 
 if (LOAD_EXISTING_DATA) {
-  load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
+  # load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
+  load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230616_complete.RData")
 } else {
   # read data --------------------
   pib_data <- most_recent_compta_nat_data_loader(folder_path = NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014,
                                                  file_name = PIB_FILE_NAME,
                                                  dimensions_list = PIB_DIMENSIONS)
+  #
+  # pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
+  #                                                     column_list = PMI_DIMENSIONS_LIST) %>%
+  #   filter(dimension %in% c("pmi_composite", "pmi_industrie", "pmi_services"))
+  # print("Dans nos fichiers, nous n'avons pas de données PMI avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
 
-  pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
-                                                      column_list = PMI_DIMENSIONS_LIST) %>%
-    filter(dimension %in% c("pmi_composite", "pmi_industrie", "pmi_services"))
-  print("Dans nos fichiers, nous n'avons pas de données PMI avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
+  # pmi_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
+  #                                     column_list = PMI_DIMENSIONS_LIST,
+  #                                     data_source = "pmi",
+  #                                     columns_to_import = c(1, 2, 3, 4))
+  #
+  # insee_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
+  #                                       column_list = INSEE_DIMENSIONS_LIST,
+  #                                       data_source = "insee",
+  #                                       columns_to_import = c(1, 15, 16, 17, 19))
+  #
+  # bdf_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
+  #                                     column_list = BDF_DIMENSIONS_LIST,
+  #                                     data_source = "bdf",
+  #                                     columns_to_import = c(1, 9, 10, 11, 12))
 
-  insee_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-                                        column_list = INSEE_DIMENSIONS_LIST,
-                                        data_source = "insee",
-                                        columns_to_import = c(1, 15, 16, 17, 19))
-
-  # télécharger les données BdF
-  bdf_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-                                      column_list = BDF_DIMENSIONS_LIST,
-                                      data_source = "bdf",
-                                      columns_to_import = c(1, 9, 10, 11, 12))
+  survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING)
 
   # prepare data  -----------
   pib_data <- pib_data %>%
     get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB") %>%
     get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB", nbr_lag = 4)
 
-  survey_data <- insee_data %>%
-    dplyr::bind_rows(pmi_data) %>%
-    dplyr::bind_rows(bdf_data)
+  # survey_data <- insee_data %>%
+  #   dplyr::bind_rows(pmi_data) %>%
+  #   dplyr::bind_rows(bdf_data)
 
   survey_data_split <- survey_data %>%
     month_to_quarter(transformation_type = "split") %>%
@@ -109,7 +119,7 @@ if (LOAD_EXISTING_DATA) {
                     1 / 9 * bdf_global_m_2) %>%
     dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
 
-  save(full_data, file = "./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
+  save(full_data, file = "./code/doc_travail_interpretation_enquetes/data/data_doc_travail_2023XXXX.RData")
 }
 
 
@@ -121,7 +131,10 @@ if (LOAD_EXISTING_DATA) {
 
 ## Partie 1 : correlations --------------------------------------------
 
-subset_data <- full_data
+# See figures_doc_travail.Rmd
+
+subset_data <- full_data %>%
+  dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10"))
 # %>%
 #   dplyr::select(date, var1_PIB, var4_PIB, insee_global_m1, insee_global_m3, lead_insee_global_m1, qt_insee_global,
 #                 var1_insee_global_m3, lead_var1_insee_global_m3, var1_qt_insee_global,
@@ -132,14 +145,14 @@ subset_data <- full_data
 #   )
 
 corrplot_data <- subset_data %>%
-  dplyr::filter(date >= lubridate::ymd("1999-04-01") & date <= lubridate::ymd("2019-10-10")
+  dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10")
                 # & !(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01"))) # pour variation trimestrielle
                 # & !(date %in% c(lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01"))) # pour glissement annuel
                 # & date != lubridate::ymd("1999-10-01")  # pour variation trimestrielle
                 # & date >= lubridate::ymd("2001-01-01") # pour glissement annuel
   )
 
-corr_values <- cor(corrplot_data %>% dplyr::select(-date), method = "pearson")
+corr_values <- cor(corrplot_data %>% dplyr::select(-date), method = "pearson", use = "pairwise.complete.obs")
 corrplot::corrplot(corr_values[, c("var1_PIB", "var4_PIB")],
                    method = "number", type = "lower", cl.pos = "n")
 
@@ -152,8 +165,6 @@ corrplot::corrplot(corr_values[, c("var1_PIB", "var4_PIB")],
 # La théorie rejoint ainsi la pratique et ça confirme que les chefs d'entreprise répondent précisément à la question.
 # On notera aussi qu'à défaut d'avoir les données du mois m+1 du trimestre T+1, on peut se contenter des données du mois m+3 du trimestre T
 # pour approximer la variation trimestrielle du trimestre T.
-# TODO: ploter graphique
-
 
 ############ 2ème enseignement :
 # Les climats en niveau sont beaucoup plus corrélés au glissement annuel du PIB qu'à sa variation trimestrielle,
@@ -163,7 +174,7 @@ corrplot::corrplot(corr_values[, c("var1_PIB", "var4_PIB")],
 
 ## différence à un seuil : normalement, si c'est seulement un shift à une constance, les corrélations ne devraient pas être modifiées
 # test avec 50 et la moyenne de long-terme pour les PMI.
-long_term_mean_pmi <- mean(corrplot_data$qt_pmi_composite, na.rm = TRUE)
+long_term_mean_pmi <- mean(subset_data$qt_pmi_composite, na.rm = TRUE)
 # TODO : do a long-term mean without outliers (crise 2008  ; autour années 2000 super haut ; on a l'impression qu'entre 2000-2010 la moyenne est autour 55 et entre 2010-1019 autour de 52-53)
 
 main_indices_data <- subset_data %>%
@@ -178,7 +189,7 @@ main_indices_data_thresold <- main_indices_data %>%
                 seuil_qt_bdf_global = qt_bdf_global - 100)
 
 corrplot_threshold <- main_indices_data_thresold %>%
-  dplyr::filter(date >= lubridate::ymd("1999-04-01") & date <= lubridate::ymd("2019-10-10"))
+  dplyr::filter(date >= lubridate::ymd("1998-07-01") & date <= lubridate::ymd("2019-10-10"))
 
 corrplot::corrplot(cor(corrplot_threshold %>% dplyr::select(-date), method = "pearson")[, c("var1_PIB", "var4_PIB")],
                    method = "number", type = "lower", cl.pos = "n")
@@ -218,7 +229,7 @@ graph_corr_doc_travail_ga <- main_indices_data %>%
 
 
 # -------------------> sample to use for correlations' tables and graphs :
-SAMPLE_TO_USE_CORR <- tableau_2_doc_travail_ga
+SAMPLE_TO_USE_CORR <- main_indices_data
 
 # First occurence
 WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
@@ -315,7 +326,7 @@ regression_data_ga <- regression_data_vt %>%
 ### Régressions simples
 # provide statistics --------------------------------
 general_statistics <- regression_data_vt %>%
-  dplyr::select(-PIB) %>%
+  # dplyr::select(-PIB) %>%
   dplyr::mutate(var4_PIB = case_when(                                                 # exclure les points aberrants pour le glissement annuel du PIB
     date %in% c(lubridate::ymd("2009-04-01"), lubridate::ymd("2009-07-01"), lubridate::ymd("2009-10-01")) ~ NA_real_,
     TRUE ~ var4_PIB
@@ -523,7 +534,7 @@ regression_data_vt_seuil_pre2008 <- regression_data_vt %>%
                 seuil_lead_insee_global_m1 = lead_insee_global_m1 - 100,
                 seuil_bdf_global_m3 = bdf_global_m3 - 100,
                 seuil_pmi_composite_m3 = pmi_composite_m3 - 50) %>%
-  dplyr::select(-c("PIB","insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
+  dplyr::select(-c("PIB", "insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3")) %>%
   dplyr::filter(date <= lubridate::ymd("2008-07-01"))
 
 create_summary_for_several_simple_regressions(y_var = "var1_PIB",
@@ -566,7 +577,6 @@ create_summary_for_several_simple_regressions(y_var = "var1_PIB",
 # CCL : problème = petit échantillon => grande volatilité
 
 
-
 ############ COMPARER GLISSEMENT ANNUEL ET VARIATION TRIMESTRIELLE POUR ESTIMAITON PIB
 
 ## TODO: faire avec estimation roulante --> pour l'instant, plus facile de faire avec estimation simple CAR sinon il faudrait modifier la fonction summarise_simple_regression_with_rolling_windows
@@ -576,9 +586,9 @@ REG_WINDOW_SIZE <- nrow(regression_data_ga) # 10 * 4 # ATTENTION, en nombre de t
 
 # Résultats pour variation trim
 summary_of_rolling_regressions_vt_period_ga <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
-                                                                                list_x_var = colnames(regression_data_ga)[!(colnames(regression_data_ga) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
-                                                                                reg_data = regression_data_ga,
-                                                                                window_size = REG_WINDOW_SIZE)
+                                                                                             list_x_var = colnames(regression_data_ga)[!(colnames(regression_data_ga) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
+                                                                                             reg_data = regression_data_ga,
+                                                                                             window_size = REG_WINDOW_SIZE)
 summary_of_rolling_regressions_vt_period_ga %>%
   dplyr::group_by(dimension) %>%
   dplyr::summarise(constant = mean(constant),
@@ -608,11 +618,6 @@ create_summary_for_several_simple_regressions_to_estimate_quarterly_variation_of
 # Les résultats des RMSE et MAE pour l'estimation avec le v.t. du PIB sont assez similaires en estimation roulante et estimation
 # complète (moins bon en estimation roulante d'environ 0.0001).
 # Les résultats des RMSE et MAE sont nettement meilleurs pour l'estimation directe avec le v.t. du PIB qu'en passant par le g.a.
-
-
-
-
-
 
 
 ## Partie 3 : Approche alternative à la régression -----------------------------
