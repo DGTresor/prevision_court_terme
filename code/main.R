@@ -25,8 +25,8 @@ source("./code/old_scripts_from_prevision_production_manuf/data_transformation.R
 
 
 # constants to define --------------------------------------------------------------------------------------------------
-UPDATE_REVISED_IPI_DATA <- FALSE
-UPDATE_REVISED_PRODUCTION_DATA <- FALSE
+UPDATE_REVISED_IPI_DATA <- TRUE
+UPDATE_REVISED_PRODUCTION_DATA <- TRUE
 ONLY_UPDATE_NONREVISED_IPI_DATA <- TRUE
 ONLY_UPDATE_NONREVISED_PRODUCTION_DATA <- TRUE
 # Note: production data in this project always refers to the production or value added in the manufacturing sector in the quarterly national accounts
@@ -95,62 +95,63 @@ if (UPDATE_REVISED_PRODUCTION_DATA) {
                                                            dimensions_list = PRODUCTION_DIMENSIONS,
                                                            dimensions_list_name = "revised")
 
-  save(revised_production, file = paste0("./data/", "revised_production_", max(unique(nonrevised_production[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
+  save(revised_production, file = paste0("./data/", "revised_production_", max(unique(revised_production[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
 } else {
   load("./data/revised_production_2023-01-01PE.RData")
 }
 
-# get the needed sector and, compare revised and nonrevised data
-compare_ipi <- merge_nonrevised_and_revised_data(revised_data = revised_ipi, nonrevised_data = nonrevised_ipi,
-                                                 dimension_to_keep = "CZ", column_to_use_for_revised_data = value, column_to_use_for_nonrevised_data = t, data_label = "ipi")
-
-compare_production <- merge_nonrevised_and_revised_data(revised_data = revised_production, nonrevised_data = nonrevised_production,
-                                                        dimension_to_keep = "P1E_DIM", column_to_use_for_revised_data = value, column_to_use_for_nonrevised_data = t, data_label = "production")
-
-# get nonrevised data corrected for the effects of changing bases
-## TO CORRECT the non-revised data for the effects of changing bases: # TODO: create a function for that (across columns) in data_preparator.R // see which method is the best
-## for ipi
-ipi_changing_base_shift_2009_2012 <- get_changing_base_shift(compare_ipi, "2009-01-01", "2012-12-01")
-nonrevised_ipi_cz <- nonrevised_ipi %>%
-  dplyr::select(date, dimension, t, t_1, t_2, t_3, t_4, t_5) %>%
-  dplyr::filter(dimension == "CZ") %>%
-  dplyr::mutate(dimension = "ipi") %>%
-  dplyr::mutate(
-    t = case_when(
-      lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t + ipi_changing_base_shift_2009_2012,
-      TRUE ~ t),
-    t_1 = case_when(
-      lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_1 + ipi_changing_base_shift_2009_2012,
-      TRUE ~ t_1),
-    t_2 = case_when(
-      lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_2 + ipi_changing_base_shift_2009_2012,
-      TRUE ~ t_2),
-    t_3 = case_when(
-      lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_3 + ipi_changing_base_shift_2009_2012,
-      TRUE ~ t_3),
-    t_4 = case_when(
-      lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_4 + ipi_changing_base_shift_2009_2012,
-      TRUE ~ t_4),
-    t_5 = case_when(
-      lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_5 + ipi_changing_base_shift_2009_2012,
-      TRUE ~ t_5)
-  )
-
-# for production
-production_changing_base_shift_2011_2013 <- get_changing_base_shift(compare_production, "2011-01-01", "2013-10-01")
-production_changing_base_shift_2014_2018 <- get_changing_base_shift(compare_production, "2014-01-01", "2018-01-01")
-nonrevised_production_cz <- nonrevised_production %>%
-  dplyr::select(date, dimension, t, t_1) %>%
-  dplyr::filter(dimension == "P1E_DIM") %>%
-  dplyr::mutate(dimension = "production") %>%
-  dplyr::mutate(
-    t = case_when(
-      lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ t + production_changing_base_shift_2011_2013,
-      lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ t + production_changing_base_shift_2014_2018,
-      TRUE ~ t),
-    t_1 = case_when(
-      lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ t_1 + production_changing_base_shift_2011_2013,
-      lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ t_1 + production_changing_base_shift_2014_2018,
-      TRUE ~ t_1)
-  )
-
+########### OLD way of dealing with changing base ->
+# # get the needed sector and, compare revised and nonrevised data
+# compare_ipi <- merge_nonrevised_and_revised_data(revised_data = revised_ipi, nonrevised_data = nonrevised_ipi,
+#                                                  dimension_to_keep = "CZ", column_to_use_for_revised_data = value, column_to_use_for_nonrevised_data = t, data_label = "ipi")
+#
+# compare_production <- merge_nonrevised_and_revised_data(revised_data = revised_production, nonrevised_data = nonrevised_production,
+#                                                         dimension_to_keep = "P1E_DIM", column_to_use_for_revised_data = value, column_to_use_for_nonrevised_data = t, data_label = "production")
+#
+# # get nonrevised data corrected for the effects of changing bases
+# ## TO CORRECT the non-revised data for the effects of changing bases: # TODO: create a function for that (across columns) in data_preparator.R // see which method is the best
+# ## for ipi
+# ipi_changing_base_shift_2009_2012 <- get_changing_base_shift(compare_ipi, "2009-01-01", "2012-12-01")
+# nonrevised_ipi_cz <- nonrevised_ipi %>%
+#   dplyr::select(date, dimension, t, t_1, t_2, t_3, t_4, t_5) %>%
+#   dplyr::filter(dimension == "CZ") %>%
+#   dplyr::mutate(dimension = "ipi") %>%
+#   dplyr::mutate(
+#     t = case_when(
+#       lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t + ipi_changing_base_shift_2009_2012,
+#       TRUE ~ t),
+#     t_1 = case_when(
+#       lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_1 + ipi_changing_base_shift_2009_2012,
+#       TRUE ~ t_1),
+#     t_2 = case_when(
+#       lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_2 + ipi_changing_base_shift_2009_2012,
+#       TRUE ~ t_2),
+#     t_3 = case_when(
+#       lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_3 + ipi_changing_base_shift_2009_2012,
+#       TRUE ~ t_3),
+#     t_4 = case_when(
+#       lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_4 + ipi_changing_base_shift_2009_2012,
+#       TRUE ~ t_4),
+#     t_5 = case_when(
+#       lubridate::year(date) >= 2009 & lubridate::year(date) < 2013 ~ t_5 + ipi_changing_base_shift_2009_2012,
+#       TRUE ~ t_5)
+#   )
+#
+# # for production
+# production_changing_base_shift_2011_2013 <- get_changing_base_shift(compare_production, "2011-01-01", "2013-10-01")
+# production_changing_base_shift_2014_2018 <- get_changing_base_shift(compare_production, "2014-01-01", "2018-01-01")
+# nonrevised_production_cz <- nonrevised_production %>%
+#   dplyr::select(date, dimension, t, t_1) %>%
+#   dplyr::filter(dimension == "P1E_DIM") %>%
+#   dplyr::mutate(dimension = "production") %>%
+#   dplyr::mutate(
+#     t = case_when(
+#       lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ t + production_changing_base_shift_2011_2013,
+#       lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ t + production_changing_base_shift_2014_2018,
+#       TRUE ~ t),
+#     t_1 = case_when(
+#       lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ t_1 + production_changing_base_shift_2011_2013,
+#       lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ t_1 + production_changing_base_shift_2014_2018,
+#       TRUE ~ t_1)
+#   )
+#
