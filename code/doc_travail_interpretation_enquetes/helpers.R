@@ -17,10 +17,11 @@ source("../old_scripts_from_prevision_production_manuf/loading_data.R", encoding
 PATH_TO_PMI_DATA <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/6. Enquêtes PMI/4. Préparation mail réaction PMI/Données/Data PMI.xlsx"
 PATH_TO_FR_DEROULEUR <- list(path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/FR_Dérouleur.xlsx",
                              sheet = "Données enquêtes")
+PATH_TO_DATA_FOR_NOWCASTING <- "./input/donnees_pour_nowcasting_en_temps_reel.xlsx"
 
 # PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
 PMI_DIMENSIONS_LIST <- list(
-  "Composite" = "composite",
+  ".omposite" = "composite",
   "industrie" = "industrie", # Pour "Synthétique industrie"
   "services" = "services"
 )
@@ -72,6 +73,17 @@ BDF_DIMENSIONS_LIST <- list(
 #   return(most_recent_file)
 # }
 
+load_data_for_nowcasting <- function(path_to_data) {
+  data <- readxl::read_xlsx(path_to_data)
+  data <- data[3:nrow(data),] %>%
+    dplyr::mutate(date = as.Date(as.numeric(date), origin = "1900-01-01") - days(2)) %>%
+    dplyr::mutate_if(is.character, as.numeric) %>%
+    tidyr::pivot_longer(cols = names(data)[names(data) != "date"],
+                        values_to = "value",
+                        names_to = "dimension")
+  return(data)
+}
+
 load_pmi_data_from_excel_all_dimensions <- function(path_to_data, column_list, dimensions_label = NULL) {
   suppressMessages(imported_data <- readxl::read_xlsx(path = path_to_data, sheet = "France", skip = 1)[-c(1:4),]) # suppress messages to prevent message of columns' type and column renaming
   clean_data <- excel_dataframe_cleaner(imported_data, column_list)
@@ -100,6 +112,121 @@ fr_derouleur_importator <- function(path_to_climat_data, column_list, data_sourc
   return(clean_data)
 }
 
+# functions for identifying outliers -----------------------------------------------------------------------------------
+
+identify_outliers <- function(data, variable_name, standard_deviation_multiplier = 1, exclusion_dates = c(), robust_estimates = FALSE) {
+  # Note : the variable must be in column
+  subset_data <- data %>%
+    dplyr::filter(!(date %in% exclusion_dates))
+
+  if (robust_estimates) {
+    # For normal distribution, a robust estimate of the mean is the median AND a robust estimate of the standard deviation is 1.4826 * MAD (Median Absolute Deviation)
+    # Note : the stats::mad() computes directly the estimate of the standard deviation (so no need to multiply it by 1.4826)
+    # Source : https://en.wikipedia.org/wiki/Robust_measures_of_scale
+    variable_standard_deviation <- stats::mad(subset_data[[variable_name]])
+    variable_mean <- median(subset_data[[variable_name]])
+
+  } else {
+    variable_standard_deviation <- sd(subset_data[[variable_name]])
+    variable_mean <- mean(subset_data[[variable_name]])
+  }
+
+  # On utilise suppressWarnings() car quand aucune date ne sera compatible avec le filtre, R retournera un Warning.
+  suppressWarnings(outliers_dates <- c(subset_data$date[subset_data[[variable_name]] < (variable_mean - standard_deviation_multiplier * variable_standard_deviation)],
+                                       subset_data$date[subset_data[[variable_name]] > (variable_mean + standard_deviation_multiplier * variable_standard_deviation)]))
+  return(list("outliers_dates" = outliers_dates, "mean" = variable_mean, "standard_deviation" = variable_standard_deviation))
+}
+
+identify_outliers_iteratively <- function(data, variable_name, standard_deviation_multiplier = 1, max_nb_tour = 10) {
+  # 1er iteration
+  outliers_dates <- identify_outliers(data, variable_name, standard_deviation_multiplier)[["outliers_dates"]]
+  all_outliers_dates <- outliers_dates
+  new_outliers_dates <- outliers_dates
+  nb_tour <- 1
+
+  while (!(length(new_outliers_dates) == 0 | nb_tour >= max_nb_tour)) {
+    outliers_info <- identify_outliers(data, variable_name, standard_deviation_multiplier, all_outliers_dates)
+    new_outliers_dates <- outliers_info[["outliers_dates"]]
+    all_outliers_dates <- c(all_outliers_dates, new_outliers_dates)
+    nb_tour <- nb_tour + 1
+  }
+  if (length(new_outliers_dates) == 0) {
+    print(paste("La convergence a été obtenue en :", nb_tour, "tour(s)."))
+  } else {
+    print(paste("L'itération a été arrêtée au bout de :", nb_tour, "tour(s) comme spécifié avec l'argument max_nb_tour."))
+  }
+  return(list("outliers_dates" = all_outliers_dates, "mean" = outliers_info[["mean"]], "standard_deviation" = outliers_info[["standard_deviation"]]))
+}
+
+# functions for correlations with rolling window ----------------------------------------------------------------------
+
+compute_correlations_with_rolling_window <- function(data, variables_of_interest, window_size, cor_na_treatment = "everything", cor_method = "pearson") {
+  # First occurence
+  first_correlations <- cor(data[1:window_size,] %>% dplyr::select(-date), use = cor_na_treatment, method = cor_method)[, variables_of_interest]
+  rolling_correlations <- data.frame(first_correlations,
+                                     dimension = row.names(first_correlations),
+                                     date = rep(data$date[[window_size]], length(row.names(first_correlations))))
+
+  # Following occurences
+  for (i in (window_size + 1):nrow(data)) {
+    correlations <- cor(data[(i - window_size + 1):i,] %>% dplyr::select(-date), use = cor_na_treatment, method = cor_method)[, variables_of_interest]
+    new_df <- data.frame(correlations,
+                         dimension = row.names(correlations),
+                         date = rep(data$date[[i]], length(row.names(first_correlations))))
+    rolling_correlations <- rolling_correlations %>%
+      dplyr::bind_rows(new_df)
+  }
+  return(rolling_correlations)
+}
+
+create_table_correlation_pib <- function(correlation_data) {
+  table <- correlation_data %>%
+    dplyr::group_by(dimension) %>%
+    dplyr::summarise(var1_PIB = mean(var1_PIB), var4_PIB = mean(var4_PIB)) %>%
+    dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))
+  return(table)
+}
+
+plot_graph_evol_correlation_pib <- function(correlation_data, pib_var_name, window_size, date_period_in_string_for_title, nb_dimensions = NULL, dimensions_label_list = NULL) {
+  # préparer les données à plotter et le nombre de dimensions pour la palette de couleur
+  plot_data <- correlation_data %>% dplyr::filter(!(dimension %in% c("var1_PIB", "var4_PIB")))
+  if (is.null(nb_dimensions)) {
+    nb_dimensions <- length(unique(plot_data$dimension))
+  }
+  color_palette_dimensions <- color_palette_for(color_list_name = "FR_derouleur", nb_dimensions = nb_dimensions)
+
+  # préparer le titre du graphique et vérifier que l'argument pib_var_name est correct
+  if (pib_var_name == "var1_PIB") {
+    plot_title <- "la variation trimestrielle du PIB"
+  } else if (pib_var_name == "var4_PIB") {
+    plot_title <- "le glissement annuel du PIB"
+  } else {
+    stop("L'argument pib_var_name de la fonction plot_graph_evol_correlation_pib() peut être : \"var1_PIB\" ou \"var4_PIB\".")
+  }
+
+  # réaliser le graphique
+  plot <- ggplot(plot_data) +
+    aes(x = date, y = var1_PIB, color = dimension) +
+    geom_line() +
+    labs(title = paste("Evolution dans le temps de la corrélation entre les climats et", plot_title),
+         subtitle = paste("Estimation roulante réalisée sur fenêtres de", window_size / 4, "ans sur la période", date_period_in_string_for_title),
+         caption = "Source : Insee, Banque de France (BdF) et S&P") +
+    dgtresor_theme() +
+    scale_y_continuous(breaks = c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8),
+                       labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))
+
+  if (is.null(dimensions_label_list)) {
+    plot <- plot +
+      scale_color_manual(palette = color_palette_dimensions)
+
+  } else {
+    plot <- plot +
+      scale_color_manual(labels = dimensions_label_list,
+                         palette = color_palette_dimensions)
+  }
+  return(plot)
+}
+
 
 # functions for regressions --------------------------------------------------------------------------------------------
 
@@ -125,6 +252,7 @@ summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_d
   reg_data_1 <- reg_data[1:window_size,]
   reg_model <- lm(reg_data_1[[y_var]] ~ reg_data_1[[x_var]], data = reg_data_1)
   if (for_ga) {
+    # TODO
 
   } else {
     reg_model_rmse <- Metrics::rmse(actual = reg_model$model[[1]], predicted = reg_model$fitted.values)
@@ -132,7 +260,7 @@ summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_d
   }
   regression_summary <- data.frame(dimension = dimension_name,
                                    date = reg_data$date[[window_size]],
-                                   constant = reg_model$coefficients[[1]],
+                                   constant = reg_model$coefficients[["(Intercept)"]],
                                    coefficient = reg_model$coefficients[[2]],
                                    adjusted_r_squared = summary(reg_model)$adj.r.squared,
                                    rmse = reg_model_rmse,
@@ -148,7 +276,7 @@ summarise_simple_regression_with_rolling_windows <- function(y_var, x_var, reg_d
     reg_model_i <- lm(as.formula(paste0(y_var, " ~ ", x_var)), data = reg_data_i)
     new_df <- data.frame(dimension = dimension_name,
                          date = reg_data$date[[i]],
-                         constant = reg_model_i$coefficients[[1]],
+                         constant = reg_model_i$coefficients[["(Intercept)"]],
                          coefficient = reg_model_i$coefficients[[2]],
                          adjusted_r_squared = summary(reg_model_i)$adj.r.squared,
                          rmse = Metrics::rmse(actual = reg_model_i$model[[1]], predicted = reg_model_i$fitted.values),
