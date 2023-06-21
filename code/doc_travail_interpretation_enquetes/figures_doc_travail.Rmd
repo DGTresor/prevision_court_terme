@@ -18,7 +18,7 @@ source("../scripts_from_automatisation_reactions/general_graph_functions.R", enc
 ```
 
 
-# 4. Une relation complexe entre les climats et la croissance du PIB. Une relation complexe entre les climats et la croissance du PIB (partie document de travail)
+# 4. Une relation complexe entre les climats et la croissance du PIB (partie document de travail)
 
 ## Remarques préliminaires
 
@@ -26,16 +26,17 @@ source("../scripts_from_automatisation_reactions/general_graph_functions.R", enc
 
 
 ```{r loading_data, echo = FALSE}
-load("../doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
+load("../doc_travail_interpretation_enquetes/data/data_doc_travail_20230616_complete.RData")
+
+subset_data <- full_data %>%
+  dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10"))
+
 ```
 
 ## Les climats des affaires : un résumé satisfaisant de la conjoncture ?
 
 
-
-
-
-**Figure 1: Concomitances des évolutions du PIB trimestriel français et des indicateurs synthétiques en niveau centrés-réduits**
+### Figure : Concomitances des évolutions du PIB trimestriel français et des indicateurs synthétiques en niveau centrés-réduits
 
 L'objectif ici est d'apporter un premier aperçu de la correspondance entre le PIB et les enquêtes.
 
@@ -43,15 +44,15 @@ L'objectif ici est d'apporter un premier aperçu de la correspondance entre le P
 
 # Data for graph
 ## en variation trimestrielle
-data_graph_evol_PIB_climat_vt <- full_data %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+data_graph_evol_PIB_climat_vt <- subset_data %>%
+  # dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
   dplyr::select(date, var1_PIB, lead_insee_global_m1, qt_pmi_composite) %>%
   tidyr::pivot_longer(cols = c("var1_PIB", "lead_insee_global_m1", "qt_pmi_composite"),
                       names_to = "dimension",
                       values_to = "value")
 ## en glissement annuel
-data_graph_evol_PIB_climat_ga <- full_data %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+data_graph_evol_PIB_climat_ga <- subset_data %>%
+  # dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
   dplyr::select(date, var4_PIB, qt_insee_global, qt_bdf_global, qt_pmi_composite) %>%
   tidyr::pivot_longer(cols = c("var4_PIB", "qt_insee_global", "qt_bdf_global", "qt_pmi_composite"),
                       names_to = "dimension",
@@ -131,21 +132,124 @@ data_for_excel_figure_1b <- data_for_excel_figure_1b %>%
 ```
 
 
-**Figure 2: Évolutions exceptionnelles du PIB trimestriel français en 1999-2000 et durant la crise de 2008-9**
 
-L'objectif ici est d'identifier les *outliers*.
+### Choix des outliers à exclure
+
+Lors du premier tour d'exclusion des outliers, on choisit comme règle d'exclusion 2 fois l'écart-type, sinon on a plus d'une dizaine d'observations à exclure (pour 1 fois l'écart-type). NB : 2 écart-types => exclusion d'environ 2% des points de la distribution.
+
+L'identification itérative des outliers n'est pas une méthode robuste mathématiquement mais permet de comprendre l'enjeu : comment identifier la bonne moyenne et le bon écart-type afin d'appliquer la règle d'exclusion des outliers sur les bonnes données. Dans cette méthode, l'estimation de la moyenne et de l'écart-type dépend de la règle d'exclusion (i.e. du standard_deviation_multiplier) ce qui est une mauvaise idée.
+
+Méthode robuste :
+1) Présupposer la normalité : l'étude des histogramme sur l'ensemble des données disponibles du PIB (1980-2023) permet d'avoir une idée ;
+2) Pour une distribution normale, une estimation robuste de la moyenne est la médiane, et une estimation robuste de l'écart-type est 1,4826 * MAD (Median Absolute Deviation, cf. [Wikipedia](https://en.wikipedia.org/wiki/Robust_measures_of_scale)).
+3) Choix d'un multiplication à 2.576 pour obtenir 99,5% de la distribution (cf. [table loi normale](https://archimede.mat.ulaval.ca/stt1920/STT-1920-Loi-normale.pdf)).
+
+```{r outliers_identification, echo = FALSE}
+
+# 1er tour d'exclusion des outliers ----------------------------------
+
+outliers_var1_pib_1 <- identify_outliers(data = subset_data,
+                                         variable_name = "var1_PIB",
+                                         standard_deviation_multiplier = 1)[["outliers_dates"]]
+print(paste("PIB en variation trimestrielle : Outliers avec 1 fois l'écart-type :", outliers_var1_pib_1))
+
+outliers_var1_pib_2 <- identify_outliers(data = subset_data,
+                                         variable_name = "var1_PIB",
+                                         standard_deviation_multiplier = 2)[["outliers_dates"]]
+print(paste("PIB en variation trimestrielle : Outliers avec 2 fois l'écart-type :", outliers_var1_pib_2))
+
+outliers_var4_pib_1 <- identify_outliers(data = subset_data,
+                                         variable_name = "var4_PIB",
+                                         standard_deviation_multiplier = 1)[["outliers_dates"]]
+print(paste("PIB en glissement annuel : Outliers avec 1 fois l'écart-type :", outliers_var4_pib_1))
+
+outliers_var4_pib_2 <- identify_outliers(data = subset_data,
+                                         variable_name = "var4_PIB",
+                                         standard_deviation_multiplier = 2)[["outliers_dates"]]
+print(paste("PIB en glissement annuel : Outliers avec 2 fois l'écart-type :", outliers_var4_pib_2))
+
+# Méthode itérative d'exclusion des outliers ----------------------------------
+
+tour_outliers_var1_pib_2 <- identify_outliers_iteratively(data = subset_data,
+                                                          variable_name = "var1_PIB",
+                                                          standard_deviation_multiplier = 2)[["outliers_dates"]]
+print(paste("PIB en variation trimestrielle : Outliers avec 2 fois l'écart-type - méthode itérative :", tour_outliers_var1_pib_2))
+
+tour_outliers_var1_pib_2bis <- identify_outliers_iteratively(data = subset_data,
+                                                             variable_name = "var1_PIB",
+                                                             standard_deviation_multiplier = 2.5)[["outliers_dates"]]
+
+tour_outliers_var1_pib_3 <- identify_outliers_iteratively(data = subset_data,
+                                                          variable_name = "var1_PIB",
+                                                          standard_deviation_multiplier = 3)[["outliers_dates"]]
+print(paste("PIB en variation trimestrielle : Outliers avec 3 fois l'écart-type - méthode itérative :", tour_outliers_var1_pib_3))
+
+
+tour_outliers_var4_pib_2 <- identify_outliers_iteratively(data = subset_data,
+                                                          variable_name = "var4_PIB",
+                                                          standard_deviation_multiplier = 2)[["outliers_dates"]]
+print(paste("PIB en glissement annuel : Outliers avec 2 fois l'écart-type - méthode itérative :", tour_outliers_var4_pib_2))
+
+tour_outliers_var4_pib_2bis <- identify_outliers_iteratively(data = subset_data,
+                                                             variable_name = "var4_PIB",
+                                                             standard_deviation_multiplier = 2.5)[["outliers_dates"]]
+
+tour_outliers_var4_pib_3 <- identify_outliers_iteratively(data = subset_data,
+                                                          variable_name = "var4_PIB",
+                                                          standard_deviation_multiplier = 3)[["outliers_dates"]]
+print(paste("PIB en glissement annuel : Outliers avec 3 fois l'écart-type - méthode itérative :", tour_outliers_var4_pib_3))
+
+# Méthode robuste de calcul de l'écart-type et de la moyenne pour identifier les outliers ----------------------------------
+
+## Prérequis : supposer normalité
+# l'étude des histogramme sur l'ensemble des données disponibles du PIB (1980-2023) permet d'avoir une idée
+hist(full_data$var1_PIB, 100)
+hist(full_data$var4_PIB, 100)
+
+# For normal distribution, a robust estimate of the mean is the median AND a robust estimate of the standard deviation is 1.4826 * MAD (Median Absolute Deviation)
+# Note : the stats::mad() computes directly the estimate of the standard deviation (so no need to multiply it by 1.4826)
+robust_outliers_info_var1_pib <- identify_outliers(data = subset_data,
+                                                   variable_name = "var1_PIB",
+                                                   standard_deviation_multiplier = 2.576,
+                                                   robust_estimates = TRUE)
+outliers_var1_pib_robust <- robust_outliers_info_var1_pib[["outliers_dates"]]
+print(paste("PIB en variation trimestrielle : Outliers avec 2.576 fois l'écart-type robuste :", outliers_var1_pib_robust))
+
+robust_outliers_info_var4_pib <- identify_outliers(data = subset_data,
+                                                   variable_name = "var4_PIB",
+                                                   standard_deviation_multiplier = 2.576,
+                                                   robust_estimates = TRUE)
+outliers_var4_pib_robust <- robust_outliers_info_var4_pib[["outliers_dates"]]
+print(paste("PIB en glissement annuel : Outliers avec 2.576 fois l'écart-type robsute :", outliers_var4_pib_robust))
+
+# Sources info :
+# https://en.wikipedia.org/wiki/Robust_measures_of_scale
+# https://en.wikipedia.org/wiki/Median_absolute_deviation
+# https://en.wikipedia.org/wiki/Robust_statistics
+
+```
+
+
+**Figure : Évolutions exceptionnelles du PIB trimestriel français durant la crise de 2008-9**
+
+Visualisation graphique de la règle robuste d'exclusion des *outliers*.
 
 ```{r figure_2, echo = FALSE}
 
+# Value boundaries
+borne_sup_var1_PIB <- robust_outliers_info_var1_pib[["mean"]] + 2.576 * robust_outliers_info_var1_pib[["standard_deviation"]]
+borne_inf_var1_PIB <- robust_outliers_info_var1_pib[["mean"]] - 2.576 * robust_outliers_info_var1_pib[["standard_deviation"]]
+borne_sup_var4_PIB <- robust_outliers_info_var4_pib[["mean"]] + 2.576 * robust_outliers_info_var4_pib[["standard_deviation"]]
+borne_inf_var4_PIB <- robust_outliers_info_var4_pib[["mean"]] - 2.576 * robust_outliers_info_var4_pib[["standard_deviation"]]
+
 # Data for graph
-data_for_excel_figure_2 <- full_data %>%
-  dplyr::filter(date >= lubridate::ymd("1999-01-01") & date <= lubridate::ymd("2019-10-10")) %>%
+data_for_excel_figure_2 <- subset_data %>%
   dplyr::select(date, var1_PIB, var4_PIB)
 data_for_excel_figure_2 <- data_for_excel_figure_2 %>%
-  dplyr::mutate(fig_2a_borne_sup = rep(0.01349832, times = nrow(data_for_excel_figure_2)),   # les bornes correspondent à la moyenne + écart-type
-                fig_2a_borne_inf = rep(-0.006142572, times = nrow(data_for_excel_figure_2)),
-                fig_2b_borne_sup = rep(0.04468996, times = nrow(data_for_excel_figure_2)),
-                fig_2b_borne_inf = rep(-0.01392008, times = nrow(data_for_excel_figure_2)))
+  dplyr::mutate(fig_2a_borne_sup = rep(borne_sup_var1_PIB, times = nrow(data_for_excel_figure_2)),   # les bornes correspondent à la moyenne + écart-type
+                fig_2a_borne_inf = rep(borne_inf_var1_PIB, times = nrow(data_for_excel_figure_2)),
+                fig_2b_borne_sup = rep(borne_sup_var4_PIB, times = nrow(data_for_excel_figure_2)),
+                fig_2b_borne_inf = rep(borne_inf_var4_PIB, times = nrow(data_for_excel_figure_2)))
 
 data_graph_evol_PIB <- data_for_excel_figure_2 %>%
   dplyr::select(date, var1_PIB, var4_PIB) %>%
@@ -155,42 +259,36 @@ data_graph_evol_PIB <- data_for_excel_figure_2 %>%
   dplyr::mutate(quarter = zoo::as.yearqtr(date))
 
 # Figure 2a Variation trimestrielle du PIB trimestriel français
-## bornes préalablement choisies : [-0.006;0.011]
-## 1 écart type : [-0.001232349;0.008588097] -> trop étroit
-## 2 écart type : [-0.006142572;0.01349832] -> pas mal => on choisit ça
 ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
   aes(x = quarter, y = value) +
   geom_line(color = "darkblue") +
   labs(title = "Variation trimestrielle du PIB trimestriel français",
        subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, calculs DG Trésor,
-                  Données : RD 2022T3 des comptes nationaux trimestriels") +
+                  Données : RD 2023T1 des comptes nationaux trimestriels") +
   dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.02, -0.01, 0, 0.01, 0.02),
                      labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
   zoo::scale_x_yearqtr(format = "T%q %Y") +
-  geom_hline(yintercept = 0.01349832, color = "darkblue", linetype = "longdash") +
-  geom_hline(yintercept = -0.006142572, color = "darkblue", linetype = "longdash")
+  geom_hline(yintercept = borne_sup_var1_PIB, color = "darkblue", linetype = "longdash") +
+  geom_hline(yintercept = borne_inf_var1_PIB, color = "darkblue", linetype = "longdash")
 
 # Figure 2b Glissement annuel du PIB trimestriel français
-## bornes préalablement choisies : [-0.001;0.031]
-## 1 écart type : [0.00073243;0.03003745] -> parfait
-## 2 écart type : [-0.01392008;0.04468996] -> trop large, notamment pour la période 2000 qui n'est presque pas englobée  => on choisit ça quand même
 ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
   aes(x = quarter, y = value) +
   geom_line(color = "darkorange") +
   labs(title = "Glissement annuel du PIB trimestriel français",
        subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, calculs DG Trésor,
-                  Données : RD 2022T3 des comptes nationaux trimestriels") +
+                  Données : RD 2023T1 des comptes nationaux trimestriels") +
   dgtresor_theme() +
   geom_hline(yintercept = 0) +
   scale_y_continuous(breaks = c(-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05),
                      labels = scales::percent_format(accuracy = 1L, decimal.mark = ",")) +
   zoo::scale_x_yearqtr(format = "T%q %Y") +
-  geom_hline(yintercept = 0.04468996, color = "darkorange", linetype = "longdash") +
-  geom_hline(yintercept = -0.01392008, color = "darkorange", linetype = "longdash")
+  geom_hline(yintercept = borne_sup_var4_PIB, color = "darkorange", linetype = "longdash") +
+  geom_hline(yintercept = borne_inf_var4_PIB, color = "darkorange", linetype = "longdash")
 
 ```
 
@@ -198,15 +296,19 @@ ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
 
 - Il y a deux outliers évidents : T4 2008 et T1 2009 ;
 
-- le point T2 2008 est bas (en variation trimestrielle) mais ça devrait aller ;
+- le point T2 2008 est bas (en variation trimestrielle) et est également exclu ;
 
-- les points T4 1999 et T2 2000 sont particulièrement hauts respectivement en variation trimestrielle et en glissement annuel.
+- les points T4 1999 et T2 2000 sont particulièrement hauts respectivement en variation trimestrielle et en glissement annuel, mais juste en dessous de la limite.
 
-- **On semble apercevoir un changement de régime pré/post crise financière de 2008-2009**.
+
+### On semble apercevoir un changement de régime pré/post crise financière de 2008-2009
+
+<input type="checkbox" unchecked> TODO : à refaire tourner sur la bonne période) </input>
 
 ```{r statistiques_descriptives_crise_2008-9, include = FALSE}
 
 # TODO : cacluler moyenne roulante sur 10 ans de la variation trimestrielle du PIB
+# TODO: à remettre à jour avec les bonnes données
 
 full_data %>%
   dplyr::select(date, var1_PIB) %>%
@@ -262,12 +364,403 @@ On a l'impression de voir deux régimes de croissance, avant et après 2008-9. L
 - et entre 1990T1-2008T1 : en moyenne de 0.50% (0.48% sans outlier 1999T4) et a une médiane de  0.51% (0.51% sans outlier 1999T4).
 
 
+
+
+### Tableau : Corrélations des indicateurs de climat des affaires avec les évolutions du PIB trimestriel
+
+La période de données est du T2 1998 au T4 2019 car :
+1) les données BdF, Insee et PIB commencent avant 1998. Les données PMI commencent en mai 1998 (le PMI trimestriel moyen prend la
+moyenne de mai et juin 1998 au lieu d'avril à juin 1998 ; les corrélations pour le PMI au mois 1 commence au T3 1998);
+2) car nous avons les comptes définitifs du PIB pour 2019 et que c'est juste avant la crise de la Covid-19 (donc fin T4 2019).
+
+Pour les variations trimestrielles, on commence au T2 1998 (sauf pour les PMI : T3 1998) et pour les glissements annuels,
+on commence également au T2 1998 (sauf pour les PMI : T2 1999).
+
+```{r tableau_corr_fenetre_glissante_en_niveau, echo = FALSE}
+
+WINDOW_CORRELATION <- 10 * 4 # Note : données trimestrielles => 10 ans
+
+data_correlations_en_niveau <- subset_data %>%
+  dplyr::select(-matches("(var|diff).*"), -PIB, var1_PIB, var4_PIB) %>%
+  dplyr::arrange(date)
+
+
+# Corrélations des enquêtes - sur toute la période
+correlation_en_niveau_pib_all_sample <- compute_correlations_with_rolling_window(data = data_correlations_en_niveau,
+                                                                                 variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                                 window_size = WINDOW_CORRELATION,
+                                                                                 cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_niveau_pib_all_sample <- create_table_correlation_pib(correlation_en_niveau_pib_all_sample)
+
+plot_graph_evol_correlation_pib(correlation_data = correlation_en_niveau_pib_all_sample,
+                                pib_var_name = "var1_PIB",
+                                window_size = WINDOW_CORRELATION,
+                                date_period_in_string_for_title = "du T3 1998 au T4 2019")
+
+plot_graph_evol_correlation_pib(correlation_data = correlation_en_niveau_pib_all_sample,
+                                pib_var_name = "var4_PIB",
+                                window_size = WINDOW_CORRELATION,
+                                date_period_in_string_for_title = "du T3 1998 au T4 2019")
+
+
+# Corrélations des enquêtes au PIB en variation trimestrielle - sans les outliers
+data_correlations_en_niveau_sans_outliers_vt <- data_correlations_en_niveau %>%
+  dplyr::filter(!(date %in% outliers_var1_pib_robust))
+
+correlation_en_niveau_pib_vt_sans_outliers <- compute_correlations_with_rolling_window(data = data_correlations_en_niveau_sans_outliers_vt,
+                                                                                       variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                                       window_size = WINDOW_CORRELATION,
+                                                                                       cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_niveau_pib_vt_sans_outliers <- create_table_correlation_pib(correlation_en_niveau_pib_vt_sans_outliers) %>%
+  dplyr::select(-var4_PIB) %>%
+  dplyr::rename(var1_PIB_sans_outliers = var1_PIB)
+
+plot_graph_evol_correlation_pib(correlation_data = correlation_en_niveau_pib_vt_sans_outliers,
+                                pib_var_name = "var1_PIB",
+                                window_size = WINDOW_CORRELATION,
+                                date_period_in_string_for_title = "du T3 1998 au T4 2019")
+
+
+# Corrélations des enquêtes au PIB en glissement annuel - sans les outliers
+data_correlations_en_niveau_sans_outliers_ga <- data_correlations_en_niveau %>%
+  dplyr::filter(!(date %in% outliers_var4_pib_robust))
+
+correlation_en_niveau_pib_ga_sans_outliers <- compute_correlations_with_rolling_window(data = data_correlations_en_niveau_sans_outliers_ga,
+                                                                                       variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                                       window_size = WINDOW_CORRELATION,
+                                                                                       cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_niveau_pib_ga_sans_outliers <- create_table_correlation_pib(correlation_en_niveau_pib_ga_sans_outliers) %>%
+  dplyr::select(-var1_PIB) %>%
+  dplyr::rename(var4_PIB_sans_outliers = var4_PIB)
+
+plot_graph_evol_correlation_pib(correlation_data = correlation_en_niveau_pib_ga_sans_outliers,
+                                pib_var_name = "var4_PIB",
+                                window_size = WINDOW_CORRELATION,
+                                date_period_in_string_for_title = "du T3 1998 au T4 2019 avec exclusion des outliers")
+
+# Préparation pour exportation
+data_for_excel_tableau_corr_niveau <- tableau_corr_en_niveau_pib_all_sample %>%
+  dplyr::right_join(tableau_corr_en_niveau_pib_vt_sans_outliers, by = "dimension") %>%
+  dplyr::right_join(tableau_corr_en_niveau_pib_ga_sans_outliers, by = "dimension")
+
+data_for_excel_figure_15_16 <- data_correlations_en_niveau %>%
+dplyr::select(date, var1_PIB, var4_PIB, insee_global_m3, lead_insee_global_m1, bdf_global_m3, pmi_composite_m3)
+
+
+```
+
+
+```{r tableau_corr_fenetre_glissante_en_vt, echo = FALSE}
+
+WINDOW_CORRELATION <- 10 * 4 # Note : données trimestrielles => 10 ans
+
+data_correlations_en_vt <- subset_data %>%
+  dplyr::select(date, var1_PIB, var4_PIB, matches("(var1_qt|diff1_qt).*")) %>%
+  dplyr::arrange(date)
+
+
+# Corrélations des enquêtes - sur toute la période
+correlation_en_vt_pib_all_sample <- compute_correlations_with_rolling_window(data = data_correlations_en_vt,
+                                                                             variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                             window_size = WINDOW_CORRELATION,
+                                                                             cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_vt_pib_all_sample <- create_table_correlation_pib(correlation_en_vt_pib_all_sample)
+
+
+# Corrélations des enquêtes au PIB en variation trimestrielle - sans les outliers
+data_correlations_en_vt_sans_outliers_vt <- data_correlations_en_vt %>%
+  dplyr::filter(!(date %in% outliers_var1_pib_robust))
+
+correlation_en_vt_pib_vt_sans_outliers <- compute_correlations_with_rolling_window(data = data_correlations_en_vt_sans_outliers_vt,
+                                                                                   variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                                   window_size = WINDOW_CORRELATION,
+                                                                                   cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_vt_pib_vt_sans_outliers <- create_table_correlation_pib(correlation_en_vt_pib_vt_sans_outliers) %>%
+  dplyr::select(-var4_PIB) %>%
+  dplyr::rename(var1_PIB_sans_outliers = var1_PIB)
+
+# Corrélations des enquêtes au PIB en glissement annuel - sans les outliers
+data_correlations_en_vt_sans_outliers_ga <- data_correlations_en_vt %>%
+  dplyr::filter(!(date %in% outliers_var4_pib_robust))
+
+correlation_en_vt_pib_ga_sans_outliers <- compute_correlations_with_rolling_window(data = data_correlations_en_vt_sans_outliers_ga,
+                                                                                   variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                                   window_size = WINDOW_CORRELATION,
+                                                                                   cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_vt_pib_ga_sans_outliers <- create_table_correlation_pib(correlation_en_vt_pib_ga_sans_outliers) %>%
+  dplyr::select(-var1_PIB) %>%
+  dplyr::rename(var4_PIB_sans_outliers = var4_PIB)
+
+# Préparation pour exportation
+data_for_excel_tableau_corr_vt <- tableau_corr_en_vt_pib_all_sample %>%
+  dplyr::right_join(tableau_corr_en_vt_pib_vt_sans_outliers, by = "dimension") %>%
+  dplyr::right_join(tableau_corr_en_vt_pib_ga_sans_outliers, by = "dimension")
+
+```
+
+
+```{r tableau_corr_fenetre_glissante_en_ga, echo = FALSE}
+
+WINDOW_CORRELATION <- 10 * 4 # Note : données trimestrielles => 10 ans
+
+data_correlations_en_ga <- subset_data %>%
+  dplyr::select(date, var1_PIB, var4_PIB, matches("var4_qt.*")) %>%
+  dplyr::arrange(date)
+
+
+# Corrélations des enquêtes - sur toute la période
+correlation_en_ga_pib_all_sample <- compute_correlations_with_rolling_window(data = data_correlations_en_ga,
+                                                                             variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                             window_size = WINDOW_CORRELATION,
+                                                                             cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_ga_pib_all_sample <- create_table_correlation_pib(correlation_en_ga_pib_all_sample)
+
+
+# Corrélations des enquêtes au PIB en variation trimestrielle - sans les outliers
+data_correlations_en_ga_sans_outliers_vt <- data_correlations_en_ga %>%
+  dplyr::filter(!(date %in% outliers_var1_pib_robust))
+
+correlation_en_ga_pib_vt_sans_outliers <- compute_correlations_with_rolling_window(data = data_correlations_en_ga_sans_outliers_vt,
+                                                                                   variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                                   window_size = WINDOW_CORRELATION,
+                                                                                   cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_ga_pib_vt_sans_outliers <- create_table_correlation_pib(correlation_en_ga_pib_vt_sans_outliers) %>%
+  dplyr::select(-var4_PIB) %>%
+  dplyr::rename(var1_PIB_sans_outliers = var1_PIB)
+
+# Corrélations des enquêtes au PIB en glissement annuel - sans les outliers
+data_correlations_en_ga_sans_outliers_ga <- data_correlations_en_ga %>%
+  dplyr::filter(!(date %in% outliers_var4_pib_robust))
+
+correlation_en_ga_pib_ga_sans_outliers <- compute_correlations_with_rolling_window(data = data_correlations_en_ga_sans_outliers_ga,
+                                                                                   variables_of_interest = c("var1_PIB", "var4_PIB"),
+                                                                                   window_size = WINDOW_CORRELATION,
+                                                                                   cor_na_treatment = "pairwise.complete.obs")
+
+tableau_corr_en_ga_pib_ga_sans_outliers <- create_table_correlation_pib(correlation_en_ga_pib_ga_sans_outliers) %>%
+  dplyr::select(-var1_PIB) %>%
+  dplyr::rename(var4_PIB_sans_outliers = var4_PIB)
+
+# Préparation pour exportation
+data_for_excel_tableau_corr_ga <- tableau_corr_en_ga_pib_all_sample %>%
+  dplyr::right_join(tableau_corr_en_ga_pib_vt_sans_outliers, by = "dimension") %>%
+  dplyr::right_join(tableau_corr_en_ga_pib_ga_sans_outliers, by = "dimension")
+
+```
+
+
+
+### Tableau : Calcul des heuristiques du document de travail
+
+Grâce aux premières régressions réalisées sur fenêtres roulantes, les indicateurs suivants sont retenus :
+* Banque de France : bdf_global_m3,
+* Insee : lead_insee_global_m1, insee_global_m3 (pour avoir un mois 3, sinon il faut attendre plus longtemps pour avoir les informations),
+* PMI : pmi_composite_m3.
+
+```{r tableau_regression_with_rolling_window, echo = FALSE}
+
+REG_WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
+
+subset_data_niveau <- subset_data %>%
+  dplyr::select(-matches("(var|diff).*"), -PIB, var1_PIB, var4_PIB) %>%
+  dplyr::filter(!(date %in% outliers_var1_pib_robust)) %>%
+  dplyr::arrange(date)
+
+# Choix des meilleurs indicateurs --------------------------------------
+summary_of_rolling_regressions <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                                                                list_x_var = colnames(subset_data_niveau)[!(colnames(subset_data_niveau) %in% c("date", "var1_PIB", "var4_PIB"))],
+                                                                                reg_data = subset_data_niveau,
+                                                                                window_size = REG_WINDOW_SIZE)
+summary_of_rolling_regressions %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(constant = mean(constant),
+                   coefficient = mean(coefficient),
+                   adjusted_r_squared = mean(adjusted_r_squared),
+                   rmse = mean(rmse),
+                   mae = mean(mae)) %>%
+  dplyr::filter(rmse <= 0.00305)  # Chiffre magique, pour avoir au moins 1 indicateur Insee
+
+# Calcul des heuristiques --------------------------------------
+subset_data_niveau_seuil <- subset_data_niveau %>%
+  dplyr::mutate(across(matches("(insee)|(bdf)"), ~(. - 100))) %>%
+  dplyr::mutate(across(matches("pmi"), ~(. - 50)))
+
+# Régressions au seuil pour calcul heuristique - avec période roulante
+summary_of_rolling_regressions_seuil_all <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                                                                          list_x_var = colnames(subset_data_niveau_seuil)[!(colnames(subset_data_niveau_seuil) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
+                                                                                          reg_data = subset_data_niveau_seuil,
+                                                                                          window_size = REG_WINDOW_SIZE) %>%
+  dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_pib_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_pib_nulle = round(valeur_indice_pour_var_trim_pib_nulle - (constant / coefficient), 0)) %>%
+  select(date, dimension, coefficient, var_trim_pib_pour_indice_au_seuil, valeur_indice_pour_var_trim_pib_nulle, adjusted_r_squared, rmse, mae)
+
+summary_of_rolling_regressions_seuil <- summary_of_rolling_regressions_seuil_all %>%
+  dplyr::filter(dimension %in% c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3"))
+
+tableau_summary_of_rolling_regressions_seuil_all <- summary_of_rolling_regressions_seuil_all %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(coefficient = mean(coefficient),
+                   var_trim_pib_pour_indice_au_seuil = mean(var_trim_pib_pour_indice_au_seuil),
+                   valeur_indice_pour_var_trim_pib_nulle = round(mean(valeur_indice_pour_var_trim_pib_nulle), 0))
+tableau_summary_of_rolling_regressions_seuil <- tableau_summary_of_rolling_regressions_seuil_all %>%
+  dplyr::filter(dimension %in% c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3"))
+tableau_summary_of_rolling_regressions_seuil
+
+# Plotting évolution heuristiques
+ggplot(summary_of_rolling_regressions_seuil) +
+  aes(x = date, y = var_trim_pib_pour_indice_au_seuil, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans de la croissance trimestrielle du PIB compatible \navec un climat constant à son seuil"))
+
+
+rolling_regressions_coef <- summary_of_rolling_regressions_seuil %>%
+  dplyr::mutate(coefficient = case_when(
+    dimension %in% c("bdf_global_m3", "insee_global_m3", "lead_insee_global_m1") ~ coefficient * 4,
+    dimension == "pmi_composite_m3" ~ coefficient * 2,
+    TRUE ~ coefficient
+  ))
+ggplot(rolling_regressions_coef) +
+  aes(x = date, y = coefficient * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Croissance associée à une hausse de 4 pts des climats Insee et BdF et de 2 pts du PMI
+  (estimation roulante sur", REG_WINDOW_SIZE / 4, "ans)"))
+
+
+# Plotting évolution métriques
+ggplot(summary_of_rolling_regressions_seuil) +
+  aes(x = date, y = adjusted_r_squared, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des R2 ajustés"))
+
+ggplot(summary_of_rolling_regressions_seuil) +
+  aes(x = date, y = rmse * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des RMSE"))
+
+ggplot(summary_of_rolling_regressions_seuil) +
+  aes(x = date, y = mae * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des MAE"))
+
+
+# Préparation pour exportation ----------------------------------
+data_for_excel_figure_evol_heuristique <- summary_of_rolling_regressions_seuil %>%
+  dplyr::select(date, dimension, var_trim_pib_pour_indice_au_seuil) %>%
+  tidyr::pivot_wider(names_from = dimension,
+                     values_from = var_trim_pib_pour_indice_au_seuil)
+
+data_for_excel_tableau_heuristique <- tableau_summary_of_rolling_regressions_seuil %>%
+  dplyr::select(-coefficient)
+
+data_for_excel_tableau_heuristique_m1_m2 <- tableau_summary_of_rolling_regressions_seuil_all %>%
+  dplyr::select(-coefficient) %>%
+  dplyr::filter(dimension %in% stringr::str_subset(unique(tableau_summary_of_rolling_regressions_seuil_all$dimension), "^[^(lead)].*_m(1|2)"))
+
+```
+
+
+```{r tableau_performance_regression, echo = FALSE}
+
+# Calcul performance pour vt PIB -------------------------------------
+
+subset_data_niveau_ga <- subset_data %>%
+  dplyr::select(-matches("(var|diff).*"), var1_PIB, var4_PIB) %>%
+  dplyr::filter(!(date %in% outliers_var4_pib_robust) & !(date %in% outliers_var4_pib_robust)) %>% # On prend le plus petit échantillon commun au deux
+  dplyr::arrange(date)
+
+summary_of_regressions_vt <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                                                           list_x_var = colnames(subset_data_niveau_ga)[!(colnames(subset_data_niveau_ga) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
+                                                                           reg_data = subset_data_niveau,
+                                                                           window_size = nrow(subset_data_niveau_ga))
+
+tableau_summary_of_regressions_vt_all <- summary_of_regressions_vt %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(constant = mean(constant),
+                   coefficient = mean(coefficient),
+                   adjusted_r_squared = mean(adjusted_r_squared),
+                   rmse = mean(rmse),
+                   mae = mean(mae))
+
+tableau_summary_of_regressions_vt <- tableau_summary_of_regressions_vt_all %>%
+  dplyr::filter(dimension %in% c("insee_global_m3", "lead_insee_global_m1", "bdf_global_m3", "pmi_composite_m3"))
+
+# Calcul performance pour ga PIB -------------------------------------
+
+subset_data_niveau_ga_without_na <-  subset_data_niveau_ga %>%
+        dplyr::select(-pmi_composite_m1, -pmi_composite_trim_formel) # parce que les données sont manquantes pour le T2 1998
+
+tableau_summary_of_regressions_ga <- create_summary_for_several_simple_regressions_to_estimate_quarterly_variation_of_GDP_with_ga(
+  y_var = "var4_PIB",
+  list_x_var = colnames(subset_data_niveau_ga_without_na)[!(colnames(subset_data_niveau_ga_without_na) %in% c("date", "PIB", "var1_PIB", "var4_PIB"))],
+  reg_data = subset_data_niveau_ga_without_na)
+
+# Préparation pour exportation ----------------------------------
+
+data_for_excel_tableau_perf_vt <- tableau_summary_of_regressions_vt %>%
+  dplyr::select(dimension, rmse, mae)
+
+data_for_excel_tableau_perf_ga <- tableau_summary_of_regressions_ga %>%
+  dplyr::select(dimension, rmse, mae)
+
+data_for_excel_perf_reg_m1_m2 <- tableau_summary_of_regressions_vt_all %>%
+  dplyr::select(dimension, rmse, mae) %>%
+  dplyr::filter(dimension %in% stringr::str_subset(unique(tableau_summary_of_rolling_regressions_seuil_all$dimension), "^[^(lead)].*_m(1|2)"))
+
+```
+
+
+
+```{r tableau_regression_general_stats, echo = FALSE}
+
+general_statistics <- subset_data_niveau %>%
+  dplyr::mutate(var4_PIB = case_when(               # exclure les points aberrants pour le glissement annuel du PIB
+    date %in% outliers_var4_pib_robust ~ NA_real_,
+    TRUE ~ var4_PIB
+  )) %>%
+  tidyr::pivot_longer(cols = colnames(subset_data_niveau)[2:length(subset_data_niveau)],
+                      names_to = "dimension",
+                      values_to = "value")
+
+simple_general_statistics <- general_statistics %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(mean = mean(value, na.rm = TRUE),
+                   standard_deviation = sd(value, na.rm = TRUE)) %>%
+  dplyr::filter(dimension %in% c("lead_insee_global_m1", "insee_global_m3", "bdf_global_m3", "pmi_composite_m3", "var1_PIB", "var4_PIB"))
+simple_general_statistics
+
+```
+
+
+
+
 ```{r export_data, include = FALSE}
 
 writexl::write_xlsx(list("data_figure_1a" = data_for_excel_figure_1a,
                          "data_figure_1b" = data_for_excel_figure_1b,
-                         "data_figure_2" = data_for_excel_figure_2),
+                         "data_figure_2" = data_for_excel_figure_2,
+                         "data_tableau_corr_niv" = data_for_excel_tableau_corr_niveau,
+                         "data_tableau_corr_vt" = data_for_excel_tableau_corr_vt,
+                         "data_tableau_corr_ga" = data_for_excel_tableau_corr_ga,
+                         "data_figure_15_16" = data_for_excel_figure_15_16,
+                         "data_figure_evol_heuristique" = data_for_excel_figure_evol_heuristique,
+                         "data_tableau_heuristiques" = data_for_excel_tableau_heuristique,
+                         "data_tableau_heuristiques_m1" = data_for_excel_tableau_heuristique_m1_m2,
+                         "data_tableau_general_stat" = simple_general_statistics,
+                         "data_tableau_perf_reg_m1" = data_for_excel_perf_reg_m1_m2,
+                         "data_tableau_perf_vt" = data_for_excel_tableau_perf_vt,
+                         "data_tableau_perf_ga" = data_for_excel_tableau_perf_ga),
                     path = "./output/output_for_graphs.xlsx",
                     col_names = TRUE, format_headers = FALSE)
-
 ```
