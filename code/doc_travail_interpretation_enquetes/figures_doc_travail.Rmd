@@ -11,9 +11,12 @@ library(tidyr)
 library(ggplot2)
 library(writexl)
 
+source("../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("../doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("../data_preparator.R", encoding = "utf-8")
 source("../scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
+
+LOAD_EXISTING_DATA_FOR_HEURISTIQUE <- TRUE
 
 ```
 
@@ -447,7 +450,7 @@ data_for_excel_tableau_corr_niveau <- tableau_corr_en_niveau_pib_all_sample %>%
   dplyr::right_join(tableau_corr_en_niveau_pib_ga_sans_outliers, by = "dimension")
 
 data_for_excel_figure_15_16 <- data_correlations_en_niveau %>%
-dplyr::select(date, var1_PIB, var4_PIB, insee_global_m3, lead_insee_global_m1, bdf_global_m3, pmi_composite_m3)
+  dplyr::select(date, var1_PIB, var4_PIB, insee_global_m3, lead_insee_global_m1, bdf_global_m3, pmi_composite_m3)
 
 
 ```
@@ -671,6 +674,181 @@ data_for_excel_tableau_heuristique_m1_m2 <- tableau_summary_of_rolling_regressio
 ```
 
 
+Pour le travail à Prev3 spécifiquement afin d'améliorer l'interprétation des enquêtes de conjoncture dans nos réactions
+
+```{r calcul_heuristiques_tous_soldes_fenetre_roulante, echo = FALSE}
+
+if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
+  load("./data/data_doc_travail_heuristiques_data_20230703.RData")
+} else {
+  load("../../data/revised_pib_2023-01-01PE.RData")
+  heuristiques_survey_data <- load_data_for_nowcasting("../../input/donnees_pour_nowcasting_en_temps_reel.xlsx")
+
+  # prepare data  -----------
+  pib_data <- revised_pib %>%
+    get_variation_for(variation_type = "growth_rate", keep_prefix = TRUE)
+
+  va_services_data <- csv_post_19T2RD_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
+                                                                 folder_name = "23T1PE",
+                                                                 file_name = "cprvolch",
+                                                                 dimensions_list = list("default" = c("va_services_marchands_non_agri" = "TD.B1_SMNA_7CH")),
+                                                                 dimensions_list_name = "default") %>%
+    get_variation_for(variation_type = "growth_rate", keep_prefix = TRUE)
+
+  va_industrie_manuf_data <- csv_post_19T2RD_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
+                                                                        folder_name = "23T1PE",
+                                                                        file_name = "cprvolch",
+                                                                        dimensions_list = list("default" = c("va_indus_manuf" = "TD.B1_DIM_7CH")),
+                                                                        dimensions_list_name = "default") %>%
+    get_variation_for(variation_type = "growth_rate", keep_prefix = TRUE)
+
+  va_construction_data <- csv_post_19T2RD_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
+                                                                     folder_name = "23T1PE",
+                                                                     file_name = "cprvolch",
+                                                                     dimensions_list = list("default" = c("va_construction" = "TD.B1_A17FZ_7CH")),
+                                                                     dimensions_list_name = "default") %>%
+    get_variation_for(variation_type = "growth_rate", keep_prefix = TRUE)
+
+  heuristiques_survey_data <- heuristiques_survey_data %>%
+    month_to_quarter(transformation_type = "mean")
+
+  heuristiques_data <- pib_data %>%
+    dplyr::bind_rows(va_services_data) %>%
+    dplyr::bind_rows(va_industrie_manuf_data) %>%
+    dplyr::bind_rows(va_construction_data) %>%
+    dplyr::bind_rows(heuristiques_survey_data) %>%
+    convert_to_wide_format()
+
+  save(heuristiques_data, file = "./data/data_doc_travail_heuristiques_data_2023XXXX.RData")
+}
+
+subset_heuristiques_data <- heuristiques_data %>%
+  dplyr::select(-matches("construction")) %>%
+  dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10")) %>%
+  dplyr::filter(!(date %in% outliers_var1_pib_robust)) %>%
+  dplyr::arrange(date)
+
+# Calcul des heuristiques --------------------------------------
+REG_WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
+
+subset_heuristiques_data_seuil <- subset_heuristiques_data %>%
+  dplyr::mutate(across(matches("(insee)|(bdf)"), ~(. - 100))) %>%
+  dplyr::mutate(across(matches("pmi"), ~(. - 50)))
+
+# Régressions au seuil pour calcul heuristique - avec période roulante - pour le PIB
+heuristiques_pib <- create_summary_for_several_simple_regressions(y_var = "var1_PIB",
+                                                                  list_x_var = colnames(subset_heuristiques_data_seuil)[!(colnames(subset_heuristiques_data_seuil) %in% c("date", "var1_PIB", "var1_B1_SMNA", "var1_B1_DIM", "var1_B1_FZ"))],
+                                                                  reg_data = subset_heuristiques_data_seuil,
+                                                                  window_size = REG_WINDOW_SIZE) %>%
+  dplyr::mutate(var_trim_pib_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_pib_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_pib_nulle = round(valeur_indice_pour_var_trim_pib_nulle - (constant / coefficient), 0)) %>%
+  select(date, dimension, coefficient, var_trim_pib_pour_indice_au_seuil, valeur_indice_pour_var_trim_pib_nulle, adjusted_r_squared, rmse, mae)
+
+
+tableau_heuristiques_pib <- heuristiques_pib %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(coefficient = mean(coefficient),
+                   var_trim_pib_pour_indice_au_seuil = mean(var_trim_pib_pour_indice_au_seuil),
+                   valeur_indice_pour_var_trim_pib_nulle = round(mean(valeur_indice_pour_var_trim_pib_nulle), 0))
+
+tableau_heuristiques_pib
+
+# Régressions au seuil pour calcul heuristique - avec période roulante - pour la VA dans les services marchands non agricoles
+heuristiques_va_services <- create_summary_for_several_simple_regressions(y_var = "var1_B1_SMNA",
+                                                                          list_x_var = c("qt_bdf_services", "qt_insee_services", "qt_pmi_services"),
+                                                                          reg_data = subset_heuristiques_data_seuil,
+                                                                          window_size = REG_WINDOW_SIZE) %>%
+  dplyr::mutate(var_trim_va_services_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_va_services_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_va_services_nulle = round(valeur_indice_pour_var_trim_va_services_nulle - (constant / coefficient), 0)) %>%
+  select(date, dimension, coefficient, var_trim_va_services_pour_indice_au_seuil, valeur_indice_pour_var_trim_va_services_nulle, adjusted_r_squared, rmse, mae)
+
+
+tableau_heuristiques_va_services <- heuristiques_va_services %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(coefficient = mean(coefficient),
+                   var_trim_va_services_pour_indice_au_seuil = mean(var_trim_va_services_pour_indice_au_seuil),
+                   valeur_indice_pour_var_trim_va_services_nulle = round(mean(valeur_indice_pour_var_trim_va_services_nulle), 0))
+
+tableau_heuristiques_va_services
+
+
+# Régressions au seuil pour calcul heuristique - SANS période roulante - pour la VA dans l'industrie manufacturière
+heuristiques_va_indus <- create_summary_for_several_simple_regressions(y_var = "var1_B1_DIM",
+                                                                       list_x_var = c("qt_bdf_industrie", "qt_insee_industrie", "qt_pmi_industrie"),
+                                                                       reg_data = subset_heuristiques_data_seuil,
+                                                                       window_size = nrow (subset_heuristiques_data)) %>% # Note: on a des valeurs aberrantes si on utilise des fenêtres roulantes [sûrement des outliers à nettoyer pour l'industrie spécifiquement]
+  dplyr::mutate(var_trim_va_indus_pour_indice_au_seuil = constant * 100,
+                valeur_indice_pour_var_trim_va_indus_nulle = case_when(
+                  stringr::str_detect(dimension, "pmi") ~ 50,
+                  TRUE ~ 100
+                )) %>%
+  dplyr::mutate(valeur_indice_pour_var_trim_va_indus_nulle = round(valeur_indice_pour_var_trim_va_indus_nulle - (constant / coefficient), 0)) %>%
+  select(date, dimension, coefficient, var_trim_va_indus_pour_indice_au_seuil, valeur_indice_pour_var_trim_va_indus_nulle, adjusted_r_squared, rmse, mae)
+
+
+tableau_heuristiques_va_indus <- heuristiques_va_indus %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::summarise(coefficient = mean(coefficient),
+                   var_trim_va_indus_pour_indice_au_seuil = mean(var_trim_va_indus_pour_indice_au_seuil),
+                   valeur_indice_pour_var_trim_va_indus_nulle = round(mean(valeur_indice_pour_var_trim_va_indus_nulle), 0))
+
+tableau_heuristiques_va_indus
+
+
+# Plotting évolution heuristiques - pour PIB --------------------------------------------------------------------------
+ggplot(heuristiques_pib) +
+  aes(x = date, y = var_trim_pib_pour_indice_au_seuil, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans de la croissance trimestrielle du PIB compatible \navec un climat constant à son seuil"))
+
+
+rolling_regressions_coef <- heuristiques_pib %>%
+  dplyr::mutate(coefficient = case_when(
+    dimension %in% c("bdf_global_m3", "insee_global_m3", "lead_insee_global_m1") ~ coefficient * 4,
+    dimension == "pmi_composite_m3" ~ coefficient * 2,
+    TRUE ~ coefficient
+  ))
+ggplot(rolling_regressions_coef) +
+  aes(x = date, y = coefficient * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Croissance associée à une hausse de 4 pts des climats Insee et BdF et de 2 pts du PMI
+  (estimation roulante sur", REG_WINDOW_SIZE / 4, "ans)"))
+
+
+# Plotting évolution métriques ----------------------------------------------------------------------------------------
+ggplot(heuristiques_pib) +
+  aes(x = date, y = adjusted_r_squared, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des R2 ajustés"))
+
+ggplot(heuristiques_pib) +
+  aes(x = date, y = rmse * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des RMSE"))
+
+ggplot(heuristiques_pib) +
+  aes(x = date, y = mae * 100, color = dimension) +
+  geom_line() +
+  labs(title = paste("Estimation roulante sur", REG_WINDOW_SIZE / 4, "ans des MAE"))
+
+# Préparation pour exportation -----------------------------------------------------------------------------------------
+data_for_excel_heuristiques_pib <- tableau_heuristiques_pib
+data_for_excel_heuristiques_va_services <- tableau_heuristiques_va_services
+data_for_excel_heuristiques_va_indus <- tableau_heuristiques_va_indus
+
+```
+
+
+
+
 ```{r tableau_performance_regression, echo = FALSE}
 
 # Calcul performance pour vt PIB -------------------------------------
@@ -698,8 +876,8 @@ tableau_summary_of_regressions_vt <- tableau_summary_of_regressions_vt_all %>%
 
 # Calcul performance pour ga PIB -------------------------------------
 
-subset_data_niveau_ga_without_na <-  subset_data_niveau_ga %>%
-        dplyr::select(-pmi_composite_m1, -pmi_composite_trim_formel) # parce que les données sont manquantes pour le T2 1998
+subset_data_niveau_ga_without_na <- subset_data_niveau_ga %>%
+  dplyr::select(-pmi_composite_m1, -pmi_composite_trim_formel) # parce que les données sont manquantes pour le T2 1998
 
 tableau_summary_of_regressions_ga <- create_summary_for_several_simple_regressions_to_estimate_quarterly_variation_of_GDP_with_ga(
   y_var = "var4_PIB",
@@ -760,7 +938,10 @@ writexl::write_xlsx(list("data_figure_1a" = data_for_excel_figure_1a,
                          "data_tableau_general_stat" = simple_general_statistics,
                          "data_tableau_perf_reg_m1" = data_for_excel_perf_reg_m1_m2,
                          "data_tableau_perf_vt" = data_for_excel_tableau_perf_vt,
-                         "data_tableau_perf_ga" = data_for_excel_tableau_perf_ga),
+                         "data_tableau_perf_ga" = data_for_excel_tableau_perf_ga,
+                         "annexe_tableau_heuristiques_1" = data_for_excel_heuristiques_pib,
+                         "annexe_tableau_heuristiques_2" = data_for_excel_heuristiques_va_services,
+                         "annexe_tableau_heuristiques_3" = data_for_excel_heuristiques_va_indus),
                     path = "./output/output_for_graphs.xlsx",
                     col_names = TRUE, format_headers = FALSE)
 ```
