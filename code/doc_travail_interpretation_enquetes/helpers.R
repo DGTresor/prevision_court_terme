@@ -73,8 +73,8 @@ BDF_DIMENSIONS_LIST <- list(
 #   return(most_recent_file)
 # }
 
-load_data_for_nowcasting <- function(path_to_data) {
-  data <- readxl::read_xlsx(path_to_data)
+load_data_for_nowcasting <- function(path_to_data, sheet = "indices_synthetiques") {
+  data <- readxl::read_xlsx(path_to_data, sheet = sheet)
   data <- data[3:nrow(data),] %>%
     dplyr::mutate(date = as.Date(as.numeric(date), origin = "1900-01-01") - days(2)) %>%
     dplyr::mutate_if(is.character, as.numeric) %>%
