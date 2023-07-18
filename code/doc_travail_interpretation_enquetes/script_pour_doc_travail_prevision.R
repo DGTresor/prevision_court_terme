@@ -35,11 +35,11 @@ UPDATE_SURVEY_DATA <- FALSE
 # 1. load revised GDP --------------------------------------------------------------------------------------------------
 if (UPDATE_REVISED_PIB_DATA) {
   # Note: we need data up to the First Estimation (i.e. première estimation in French, PE) of 2019T4 for the doc_travail
-  revised_pib <- xls_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
-                                                folder_name = "23T1PE",
-                                                file_name = "erevolch",
-                                                dimensions_list = PIB_DIMENSIONS,
-                                                dimensions_list_name = "post_19T2RD")
+  revised_pib <- csv_post_19T2RD_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
+                                                            folder_name = "23T1PE",
+                                                            file_name = "erevolch",
+                                                            dimensions_list = PIB_DIMENSIONS,
+                                                            dimensions_list_name = "post_19T2RD")
 
   save(revised_pib, file = paste0("./data/", "revised_pib_", max(unique(revised_pib[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
 } else {
@@ -81,7 +81,7 @@ if (UPDATE_SURVEY_DATA) {
   save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_", lubridate::today(), ".RData"))
 
 } else {
-  load("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_20230718.RData")
+  load("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_2023-07-18.RData")
 }
 
 
