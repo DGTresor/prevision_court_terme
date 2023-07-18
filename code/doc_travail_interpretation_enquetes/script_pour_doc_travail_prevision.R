@@ -87,23 +87,14 @@ if (UPDATE_SURVEY_DATA) {
 
 # 4. create the dataframes for the prevision ---------------------------------------------------------------------------
 
-## add additional variables (features): the monthly variation and monthly difference of survey data
-## and transform survey data to deal with the mix frequency problem by using the "blocking method"
-survey_data_growth_rate <- survey_data %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE, prefix = "vm1") %>%  # create the monthly variation of survey data (variation mensuelle in French)
+##  transform survey data to deal with the mix frequency problem by using the "blocking method"
+survey_data_split <- survey_data %>%
   month_to_quarter(transformation_type = "split")                                           # apply the blocking method
 
-
-survey_data_difference <- survey_data %>%
-  get_variation_for(variation_type = "difference", keep_prefix = TRUE, prefix = "dm1") %>%  # create the monthly difference of survey data (différence mensuelle in French)
-  month_to_quarter(transformation_type = "split")                                           # apply the blocking method
-
-full_survey_data <- survey_data_growth_rate %>%
-  dplyr::bind_rows(survey_data_difference)
 
 # create the lead variables, i.e. the variables at month 1 from the T+1 quarter
-full_survey_data <- full_survey_data %>%
-  get_variation_for(variation_type = "lead", nbr_lead = 1, add_option = TRUE, dimensions_to_transform = stringr::str_subset(unique(full_survey_data$dimension), ".*_m1")) %>%
+full_survey_data <- survey_data_split %>%
+  get_variation_for(variation_type = "lead", nbr_lead = 1, add_option = TRUE, dimensions_to_transform = stringr::str_subset(unique(survey_data_split$dimension), ".*_m1")) %>%
   convert_to_wide_format() %>%
   dplyr::select(date, contains("industrie"), contains("services"), contains("global"), contains("composite"), -contains("production_passee"))
 
