@@ -107,7 +107,7 @@ full_survey_data <- full_survey_data %>%
   convert_to_wide_format() %>%
   dplyr::select(date, contains("industrie"), contains("services"), contains("global"), contains("composite"), -contains("production_passee"))
 
-save(full_survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_",lubridate::today(),".RData"))
+save(full_survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_", lubridate::today(), ".RData"))
 
 
 ## transform GDP data to get its quarterly variation and its annual variation
@@ -245,6 +245,7 @@ nowcasting_summaries_pseudo_real_time_PE <- nowcasting_summaries_pseudo_real_tim
 
 
 # 6. Check stability of model selection --------------------------------------------------------------------------------
+## Note: due to the small sample size, model selection at each horizon is here based on in-sample rmse
 
 table_model_stability <- real_time_out_of_sample_current_quarter_nowcasting %>%
   dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)"))
@@ -268,6 +269,38 @@ table_model_stability_h3 <- table_model_stability %>%
   dplyr::select(date, dimension, reg_rmse)
 
 table_model_stability_hlead <- table_model_stability %>%
+  dplyr::filter(horizon == "lead") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
+
+# 6. Check stability of model selection for Insee and PMI data ---------------------------------------------------------
+## Note: BdF surveys are realised later than Insee and PMI ones, so they include more information, which can explain their good performance
+## Note: due to the small sample size, model selection at each horizon is here based on in-sample rmse
+
+table_model_stability_v2 <- real_time_out_of_sample_current_quarter_nowcasting %>%
+  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
+  dplyr::filter(!(dimension %in% stringr::str_subset(unique(dimension), "bdf")))  # remove BdF survey variables
+
+table_model_stability_v2_h1 <- table_model_stability_v2 %>%
+  dplyr::filter(horizon == "m1") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
+
+table_model_stability_v2_h2 <- table_model_stability_v2 %>%
+  dplyr::filter(horizon == "m2") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
+
+table_model_stability_v2_h3 <- table_model_stability_v2 %>%
+  dplyr::filter(horizon == "m3") %>%
+  dplyr::group_by(date) %>%
+  dplyr::filter(reg_rmse == min(reg_rmse)) %>%
+  dplyr::select(date, dimension, reg_rmse)
+
+table_model_stability_v2_hlead <- table_model_stability_v2 %>%
   dplyr::filter(horizon == "lead") %>%
   dplyr::group_by(date) %>%
   dplyr::filter(reg_rmse == min(reg_rmse)) %>%
@@ -433,6 +466,10 @@ writexl::write_xlsx(list("data_figure_prev_m1" = data_for_excel_figure_m1,
                          "data_tableau_stabilite_2" = table_model_stability_h2,
                          "data_tableau_stabilite_3" = table_model_stability_h3,
                          "data_tableau_stabilite_4" = table_model_stability_hlead,
+                         "data_tableau_stabilite_ssbdf_1" = table_model_stability_v2_h1,
+                         "data_tableau_stabilite_ssbdf_2" = table_model_stability_v2_h2,
+                         "data_tableau_stabilite_ssbdf_3" = table_model_stability_v2_h3,
+                         "data_tableau_stabilite_ssbdf_4" = table_model_stability_v2_hlead,
                          "data_future_leakage_box" = production_ipi_data),
                     path = "./code/doc_travail_interpretation_enquetes/output/prevision_output_for_graphs.xlsx",
                     col_names = TRUE, format_headers = FALSE)
