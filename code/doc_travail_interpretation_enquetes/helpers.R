@@ -38,7 +38,7 @@ BDF_DIMENSIONS_LIST <- list(
   "construction" = "construction"
 )
 
-# TODO: put all the function below in data_importator.R
+# TODO: put all the function below in data_importator.R // functions useful for the independent project of Document de travail
 # functions to load data -----------------------------------------------------------------------------------------------
 
 # most_recent_compta_nat_data_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {

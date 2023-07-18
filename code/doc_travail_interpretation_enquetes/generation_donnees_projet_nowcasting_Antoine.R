@@ -75,10 +75,10 @@ survey_data_split <- survey_data_split %>%
 # Note : we create lead only for the indices at month 1
 
 survey_data_growth_rate <- survey_data_split %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE)
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE) # TODO: ATTENTION, ça donne la comparaison d'un mois 1 avec le mois 1 du trimestre passé, i.e. glissement trimestriel
 
 survey_data_difference <- survey_data_split %>%
-  get_variation_for(variation_type = "difference", keep_prefix = TRUE)
+  get_variation_for(variation_type = "difference", keep_prefix = TRUE) # TODO: ATTENTION, ça donne la comparaison d'un mois 1 avec le mois 1 du trimestre passé, i.e. glissement trimestriel
 
 full_survey_data <- survey_data_growth_rate %>%
   dplyr::bind_rows(survey_data_difference) %>%
