@@ -78,7 +78,7 @@ if (UPDATE_NONREVISED_PIB_DATA) {
 if (UPDATE_SURVEY_DATA) {
   survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = "indices_synthetiques")
 
-  save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_",lubridate::today(),".RData"))
+  save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_", lubridate::today(), ".RData"))
 
 } else {
   load("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_20230718.RData")
@@ -87,30 +87,32 @@ if (UPDATE_SURVEY_DATA) {
 
 # 4. create the dataframes for the prevision ---------------------------------------------------------------------------
 
-## transform survey data to deal with the mix frequency problem by using the "blocking method"
-survey_data_split <- survey_data %>%
-  month_to_quarter(transformation_type = "split")
-survey_data_split <- survey_data_split %>%
-  get_variation_for(variation_type = "lead", nbr_lead = 1, add_option = TRUE, dimensions_to_transform = stringr::str_subset(unique(survey_data_split$dimension), ".*_m1"))
-# Note : we create lead only for the indices at month 1
+## add additional variables (features): the monthly variation and monthly difference of survey data
+## and transform survey data to deal with the mix frequency problem by using the "blocking method"
+survey_data_growth_rate <- survey_data %>%
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE, prefix = "vm1") %>%  # create the monthly variation of survey data (variation mensuelle in French)
+  month_to_quarter(transformation_type = "split")                                           # apply the blocking method
 
-survey_data_growth_rate <- survey_data_split %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE) # TODO: attention, c'est un gt1 (non var1)
 
-survey_data_difference <- survey_data_split %>%
-  get_variation_for(variation_type = "difference", keep_prefix = TRUE) # TODO: attention, c'est une difftrim1
+survey_data_difference <- survey_data %>%
+  get_variation_for(variation_type = "difference", keep_prefix = TRUE, prefix = "dm1") %>%  # create the monthly difference of survey data (différence mensuelle in French)
+  month_to_quarter(transformation_type = "split")                                           # apply the blocking method
 
 full_survey_data <- survey_data_growth_rate %>%
-  dplyr::bind_rows(survey_data_difference) %>%
+  dplyr::bind_rows(survey_data_difference)
+
+# create the lead variables, i.e. the variables at month 1 from the T+1 quarter
+full_survey_data <- full_survey_data %>%
+  get_variation_for(variation_type = "lead", nbr_lead = 1, add_option = TRUE, dimensions_to_transform = stringr::str_subset(unique(full_survey_data$dimension), ".*_m1")) %>%
   convert_to_wide_format() %>%
   dplyr::select(date, contains("industrie"), contains("services"), contains("global"), contains("composite"), -contains("production_passee"))
 
-# save(full_survey_data, file = "./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_",lubridate::today(),".RData")
+save(full_survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_",lubridate::today(),".RData"))
 
 
 ## transform GDP data to get its quarterly variation and its annual variation
 corrected_nonrevised_pib <- nonrevised_pib %>%
-  dplyr::select(date, dimension, t, t_1, t_4) %>% # dplyr::select(matches("(date)|(dimension)|(^t$)|(^t_[1-9]$)")) # To keep severy t_XX
+  dplyr::select(date, dimension, t, t_1, t_4) %>%
   dplyr::filter(dimension == "PIB") %>%
   dplyr::mutate(dimension = "nonrevised_pib") %>%
   dplyr::mutate(var1_PIB = t / t_1 - 1,
