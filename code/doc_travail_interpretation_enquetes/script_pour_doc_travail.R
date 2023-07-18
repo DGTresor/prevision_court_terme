@@ -1,10 +1,12 @@
-# Title     : TODO
-# Objective : investigate the relationships between GDP and business sentiments
+# Title     : Analysis of GDP and business sentiments relationships
+# Objective : Reproduce the results of the Document de Travail n°XXX of the French Treasury (Direction générale du Trésor)
 # Created by: lphung
 # Created on: 18/01/2023
 
 # disclaimer -----------------------------------------------------------------------------------------------------------
-# Les résultats du document de travail ont été réalisés avec les données : "./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230616_complete.RData"
+# The results of the Document de Travail n°XXX of the French Treasury (Direction générale du Trésor) have been obtained with the following data:
+# For revised GDP data: the GDP series from the First Estimation of French National Accounting of the 1st quarter of 2023
+# For survey data: raw survey data have been extracted using the DataInsight software on July 18th, 2023
 
 # clean environment ----------------------------------------------------------------------------------------------------
 rm(list = ls())
@@ -27,102 +29,88 @@ source("./code/scripts_from_automatisation_reactions/general_graph_functions.R",
 
 
 # constants ------------------------------------------------------------------------------------------------------------
-
-LOAD_EXISTING_DATA <- TRUE      # if FALSE, update data
-PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
+UPDATE_REVISED_PIB_DATA <- FALSE   # if FALSE, update data
+UPDATE_SURVEY_DATA <- FALSE
 
 # load data ------------------------------------------------------------------------------------------------------------
+if (UPDATE_REVISED_PIB_DATA) {
+  # Note: we need data up to the First Estimation (i.e. première estimation in French, PE) of 2019T4 for the doc_travail
+  revised_pib <- csv_post_19T2RD_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
+                                                            folder_name = "23T1PE",
+                                                            file_name = "erevolch",
+                                                            dimensions_list = PIB_DIMENSIONS,
+                                                            dimensions_list_name = "post_19T2RD")
 
-if (LOAD_EXISTING_DATA) {
-  # load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230131.RData")
-  load("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_20230616_complete.RData")
+  save(revised_pib, file = paste0("./data/", "revised_pib_", max(unique(revised_pib[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
 } else {
-  # read data --------------------
-  pib_data <- most_recent_compta_nat_data_loader(folder_path = NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014,
-                                                 file_name = PIB_FILE_NAME,
-                                                 dimensions_list = PIB_DIMENSIONS)
-  #
-  # pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
-  #                                                     column_list = PMI_DIMENSIONS_LIST) %>%
-  #   filter(dimension %in% c("pmi_composite", "pmi_industrie", "pmi_services"))
-  # print("Dans nos fichiers, nous n'avons pas de données PMI avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
-
-  # pmi_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-  #                                     column_list = PMI_DIMENSIONS_LIST,
-  #                                     data_source = "pmi",
-  #                                     columns_to_import = c(1, 2, 3, 4))
-  #
-  # insee_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-  #                                       column_list = INSEE_DIMENSIONS_LIST,
-  #                                       data_source = "insee",
-  #                                       columns_to_import = c(1, 15, 16, 17, 19))
-  #
-  # bdf_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-  #                                     column_list = BDF_DIMENSIONS_LIST,
-  #                                     data_source = "bdf",
-  #                                     columns_to_import = c(1, 9, 10, 11, 12))
-
-  survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING)
-
-  # prepare data  -----------
-  pib_data <- pib_data %>%
-    get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB") %>%
-    get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB", nbr_lag = 4)
-
-  # survey_data <- insee_data %>%
-  #   dplyr::bind_rows(pmi_data) %>%
-  #   dplyr::bind_rows(bdf_data)
-
-  survey_data_split <- survey_data %>%
-    month_to_quarter(transformation_type = "split") %>%
-    get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = c("insee_global_m1", "insee_global_m3")) %>%
-    get_variation_for(variation_type = "difference", add_option = TRUE, dimensions_to_transform = c("insee_global_m1", "insee_global_m3"))
-
-  survey_data_mean <- survey_data %>%
-    month_to_quarter(transformation_type = "mean")
-
-  survey_data_mean_vt <- survey_data_mean %>%
-    get_variation_for(variation_type = "growth_rate", add_option = TRUE, keep_prefix = TRUE)
-
-  survey_data_mean_ga <- survey_data_mean %>%
-    get_variation_for(variation_type = "growth_rate", nbr_lag = 4, keep_prefix = TRUE)
-
-  survey_data_mean_diff <- survey_data_mean %>%
-    get_variation_for(variation_type = "difference", keep_prefix = TRUE)
-
-  full_data <- pib_data %>%
-    dplyr::bind_rows(survey_data_split) %>%
-    dplyr::bind_rows(survey_data_mean_vt) %>%
-    dplyr::bind_rows(survey_data_mean_ga) %>%
-    dplyr::bind_rows(survey_data_mean_diff) %>%
-    convert_to_wide_format() %>%
-    dplyr::mutate(lead_var1_insee_global_m3 = lead(var1_insee_global_m1),
-                  lead_diff1_insee_global_m3 = lead(diff1_insee_global_m1),
-                  lead_insee_global_m1 = lead(insee_global_m1))
-
-  full_data <- full_data %>%
-    dplyr::select(date, contains(c("PIB", "global", "composite"))) %>%
-    dplyr::mutate(pmi_composite_m_1 = lag(pmi_composite_m3),
-                  pmi_composite_m_2 = lag(pmi_composite_m2),
-                  bdf_global_m_1 = lag(bdf_global_m3),
-                  bdf_global_m_2 = lag(bdf_global_m2)
-    ) %>%
-    dplyr::mutate(pmi_composite_trim_formel = 1 / 9 * pmi_composite_m3 +
-      2 / 9 * pmi_composite_m2 +
-      1 / 3 * pmi_composite_m1 +
-      2 / 9 * pmi_composite_m_1 +
-      1 / 9 * pmi_composite_m_2,
-                  bdf_global_trim_formel = 1 / 9 * bdf_global_m3 +
-                    2 / 9 * bdf_global_m2 +
-                    1 / 3 * bdf_global_m1 +
-                    2 / 9 * bdf_global_m_1 +
-                    1 / 9 * bdf_global_m_2) %>%
-    dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
-
-  save(full_data, file = "./code/doc_travail_interpretation_enquetes/data/data_doc_travail_2023XXXX.RData")
+  load("./data/revised_pib_2023-01-01PE.RData")
+}
+if (UPDATE_SURVEY_DATA) {
+  survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = "indices_synthetiques")
+  save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_", lubridate::today(), ".RData"))
+} else {
+  load("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_2023-07-18.RData")
 }
 
+# prepare data ---------------------------------------------------------------------------------------------------------
 
+pib_data <- revised_pib %>%
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB") %>%
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE, dimensions_to_transform = "PIB", nbr_lag = 4)
+
+# deal with the mix frequency problem
+survey_data_split <- survey_data %>%
+  month_to_quarter(transformation_type = "split")  # apply the "blocking method"
+
+survey_data_mean <- survey_data %>%
+  month_to_quarter(transformation_type = "mean")   # do the quarterly mean
+
+survey_data_mean_vt <- survey_data_mean %>%
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE, keep_prefix = TRUE)
+
+survey_data_mean_ga <- survey_data_mean %>%
+  get_variation_for(variation_type = "growth_rate", nbr_lag = 4, keep_prefix = TRUE)
+
+survey_data_mean_diff <- survey_data_mean %>%
+  get_variation_for(variation_type = "difference", keep_prefix = TRUE)
+
+full_survey_data <- survey_data_split %>%
+  dplyr::bind_rows(survey_data_mean_vt) %>%
+  dplyr::bind_rows(survey_data_mean_ga) %>%
+  dplyr::bind_rows(survey_data_mean_diff)
+
+full_data <- pib_data %>%
+  dplyr::bind_rows(full_survey_data) %>%
+  convert_to_wide_format() %>%
+  dplyr::mutate(lead_insee_global_m1 = lead(insee_global_m1))
+
+# create the formal quarterly indices
+full_data <- full_data %>%
+  dplyr::select(date, contains(c("PIB", "global", "composite"))) %>%
+  dplyr::mutate(pmi_composite_m_1 = lag(pmi_composite_m3),
+                pmi_composite_m_2 = lag(pmi_composite_m2),
+                bdf_global_m_1 = lag(bdf_global_m3),
+                bdf_global_m_2 = lag(bdf_global_m2)
+  ) %>%
+  dplyr::mutate(pmi_composite_trim_formel = 1 / 9 * pmi_composite_m3 +
+    2 / 9 * pmi_composite_m2 +
+    1 / 3 * pmi_composite_m1 +
+    2 / 9 * pmi_composite_m_1 +
+    1 / 9 * pmi_composite_m_2,
+                bdf_global_trim_formel = 1 / 9 * bdf_global_m3 +
+                  2 / 9 * bdf_global_m2 +
+                  1 / 3 * bdf_global_m1 +
+                  2 / 9 * bdf_global_m_1 +
+                  1 / 9 * bdf_global_m_2) %>%
+  dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
+
+# impute value for pmi_composite_m1 for T2 1998 for which data is missing (PMI series starts in May 1998)
+full_data$pmi_composite_m1[full_data$date == lubridate::ymd("1998-04-01")] = (full_data$pmi_composite_m2[full_data$date == lubridate::ymd("1998-04-01")] + full_data$pmi_composite_m3[full_data$date == lubridate::ymd("1998-04-01")]) / 2
+
+save(full_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_", lubridate::today(), ".RData"))
+
+
+# TODO: CHECK that everything below works, clean code for publication
 # analysis -------------------------------------------------------------------------------------------------------------
 
 ## Partie 0 : cut outliers --------------------------------------------
@@ -137,7 +125,7 @@ subset_data <- full_data %>%
   dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10"))
 # %>%
 #   dplyr::select(date, var1_PIB, var4_PIB, insee_global_m1, insee_global_m3, lead_insee_global_m1, qt_insee_global,
-#                 var1_insee_global_m3, lead_var1_insee_global_m3, var1_qt_insee_global,
+#                 var1_insee_global_m3, lead_var1_insee_global_m1, var1_qt_insee_global,
 #                 diff1_insee_global_m3, lead_diff1_insee_global_m3, diff1_qt_insee_global,
 #                 qt_pmi_composite, var1_qt_pmi_composite, diff1_qt_pmi_composite,
 #                 qt_bdf_global, var1_qt_bdf_global, diff1_qt_bdf_global,

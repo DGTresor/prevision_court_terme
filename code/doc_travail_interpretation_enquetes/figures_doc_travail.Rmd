@@ -29,12 +29,13 @@ LOAD_EXISTING_DATA_FOR_HEURISTIQUE <- TRUE
 
 
 ```{r loading_data, echo = FALSE}
-load("../doc_travail_interpretation_enquetes/data/data_doc_travail_20230616_complete.RData")
+load("../doc_travail_interpretation_enquetes/data/data_doc_travail_2023-07-18.RData")
 
 subset_data <- full_data %>%
   dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10"))
 
 ```
+
 
 ## Les climats des affaires : un résumé satisfaisant de la conjoncture ?
 
