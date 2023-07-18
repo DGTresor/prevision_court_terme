@@ -1,10 +1,14 @@
-# Title     : TODO
-# Objective : TODO
+# Title     : Real-time nowcasting of French GDP based on survey data
+# Objective : Reproduce the results of the Document de Travail n°XXX of the French Treasury (Direction générale du Trésor)
 # Created by: lphung
 # Created on: 08/05/2023
 
 # disclaimer -----------------------------------------------------------------------------------------------------------
-# Les résultats du document de travail ont été réalisés avec les données : "./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_20230522.RData"
+# The results of the Document de Travail n°XXX of the French Treasury (Direction générale du Trésor) have been obtained with the following data:
+# For revised GDP data: the GDP series from the First Estimation of French National Accounting of the 1st quarter of 2023
+# For survey data: raw survey data have been extracted using the DataInsight software on July 18th, 2023
+
+# Note: GDP in French if PIB. Hence, PIB variables relate to GDP.
 
 # initialise the environment -------------------------------------------------------------------------------------------
 rm(list = ls())
@@ -28,15 +32,9 @@ UPDATE_REVISED_PIB_DATA <- FALSE
 UPDATE_NONREVISED_PIB_DATA <- FALSE
 UPDATE_SURVEY_DATA <- FALSE
 
-# 1. load revised pib -------------------------------------------------------------------------------------------
-# Note: load revised data to calculate the effects of changing bases
-
+# 1. load revised GDP --------------------------------------------------------------------------------------------------
 if (UPDATE_REVISED_PIB_DATA) {
   # Note: we need data up to the First Estimation (i.e. première estimation in French, PE) of 2019T4 for the doc_travail
-
-  # revised_pib <- most_recent_compta_nat_data_loader(folder_path = NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014,
-  #                                                          file_name = PIB_FILE_NAME,
-  #                                                          dimensions_list = PIB_DIMENSIONS)
   revised_pib <- xls_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
                                                 folder_name = "23T1PE",
                                                 file_name = "erevolch",
@@ -48,13 +46,13 @@ if (UPDATE_REVISED_PIB_DATA) {
   load("./data/revised_pib_2023-01-01PE.RData")
 }
 
-# 2. load nonrevised pib ----------------------------------------------------------------------------------------
+# 2. load nonrevised GDP -----------------------------------------------------------------------------------------------
 if (UPDATE_NONREVISED_PIB_DATA) {
-  # preparation of the list
+  # preparation of the list of GDP data files containing all the vintages
   PIB_DATA_FOLDERS <- get_national_accounting_data_files(NATIONAL_ACCOUNTING_DATA_FOLDER,
                                                          starting_period = "base2000",                             # only works for PIB data, look at the function's comments for more details
                                                          estimation_type = "PE",                                   # we keep only the folders containing the 1st estimation of the quarterly accounts (PE)
-                                                         subset_regex = ".*/(?!(2.))[:digit:]{2}T[:digit:]PE"     # we keep data only up to 2019T4
+                                                         subset_regex = ".*/(?!(2.))[:digit:]{2}T[:digit:]PE"      # we keep data only up to 2019T4
   )
 
   PIB_FILES_TYPES <- list("pre_2011_xls" = stringr::str_subset(names(PIB_DATA_FOLDERS), "(^0.*)|(^10.*)"),
@@ -63,7 +61,7 @@ if (UPDATE_NONREVISED_PIB_DATA) {
                           "post_19T2RD_csv" = stringr::str_subset(names(PIB_DATA_FOLDERS), "(^2(?!(0.*)|(1.*)|(2T1PE)).*)") # aucun de ce type avant 2020
   )
 
-  # preparation of the matrix
+  # preparation of the matrix of vintage data
   nonrevised_pib <- construct_nonrevised_national_account_data_from_scratch(data_source = "national_accounting",
                                                                             files_list = PIB_DATA_FOLDERS,
                                                                             file_type2files_list = PIB_FILES_TYPES,
@@ -76,59 +74,41 @@ if (UPDATE_NONREVISED_PIB_DATA) {
   load("./data/nonrevised_pib_2023-01-01PE.RData")
 }
 
-# 3. load survey data -----------------------------------------------------------------------------------------------
-
+# 3. load survey data --------------------------------------------------------------------------------------------------
 if (UPDATE_SURVEY_DATA) {
-  pmi_data <- load_pmi_data_from_excel_all_dimensions(path_to_data = PATH_TO_PMI_DATA,
-                                                      column_list = PMI_DIMENSIONS_LIST) %>%
-    filter(dimension %in% c("pmi_composite", "pmi_industrie", "pmi_services"))
-  print("Dans nos fichiers, nous n'avons pas de données PMI avant le 1er janvier 1999. Pourtant, on devrait pouvoir trouver des données depuis le T3 1998.")
+  survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = "indices_synthetiques")
 
-  insee_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-                                        column_list = INSEE_DIMENSIONS_LIST,
-                                        data_source = "insee",
-                                        columns_to_import = c(1, 15, 16, 17, 19))
-
-  # télécharger les données BdF
-  bdf_data <- fr_derouleur_importator(path_to_climat_data = PATH_TO_FR_DEROULEUR,
-                                      column_list = BDF_DIMENSIONS_LIST,
-                                      data_source = "bdf",
-                                      columns_to_import = c(1, 9, 10, 11, 12))
-
-  survey_data <- insee_data %>%
-    dplyr::bind_rows(pmi_data) %>%
-    dplyr::bind_rows(bdf_data)
-
-  survey_data_split <- survey_data %>%
-    month_to_quarter(transformation_type = "split")
-  survey_data_split <- survey_data_split %>%
-    get_variation_for(variation_type = "lead", nbr_lead = 1, add_option = TRUE, dimensions_to_transform = stringr::str_subset(unique(survey_data_split$dimension), ".*_m1"))
-  # Note : we create lead only for the indices at month 1
-
-  survey_data_growth_rate <- survey_data_split %>%
-    get_variation_for(variation_type = "growth_rate", add_option = TRUE)
-
-  survey_data_difference <- survey_data_split %>%
-    get_variation_for(variation_type = "difference", keep_prefix = TRUE)
-
-  full_survey_data <- survey_data_growth_rate %>%
-    dplyr::bind_rows(survey_data_difference) %>%
-    convert_to_wide_format() %>%
-    dplyr::select(-contains("construction"))
-
-  save(full_survey_data, file = "./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_20230621.RData")
+  save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_",lubridate::today(),".RData"))
 
 } else {
-  load("./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_20230522.RData")
+  load("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_20230718.RData")
 }
 
 
 # 4. create the dataframes for the prevision ---------------------------------------------------------------------------
 
-## Note that what matters is the PIB quarterly variable => get the quarterly variable published at each period and then apply
-## the variations to the level to get rebased data
+## transform survey data to deal with the mix frequency problem by using the "blocking method"
+survey_data_split <- survey_data %>%
+  month_to_quarter(transformation_type = "split")
+survey_data_split <- survey_data_split %>%
+  get_variation_for(variation_type = "lead", nbr_lead = 1, add_option = TRUE, dimensions_to_transform = stringr::str_subset(unique(survey_data_split$dimension), ".*_m1"))
+# Note : we create lead only for the indices at month 1
 
-# get nonrevised data corrected for the effects of changing bases
+survey_data_growth_rate <- survey_data_split %>%
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE) # TODO: attention, c'est un gt1 (non var1)
+
+survey_data_difference <- survey_data_split %>%
+  get_variation_for(variation_type = "difference", keep_prefix = TRUE) # TODO: attention, c'est une difftrim1
+
+full_survey_data <- survey_data_growth_rate %>%
+  dplyr::bind_rows(survey_data_difference) %>%
+  convert_to_wide_format() %>%
+  dplyr::select(date, contains("industrie"), contains("services"), contains("global"), contains("composite"), -contains("production_passee"))
+
+# save(full_survey_data, file = "./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_",lubridate::today(),".RData")
+
+
+## transform GDP data to get its quarterly variation and its annual variation
 corrected_nonrevised_pib <- nonrevised_pib %>%
   dplyr::select(date, dimension, t, t_1, t_4) %>% # dplyr::select(matches("(date)|(dimension)|(^t$)|(^t_[1-9]$)")) # To keep severy t_XX
   dplyr::filter(dimension == "PIB") %>%
@@ -136,9 +116,8 @@ corrected_nonrevised_pib <- nonrevised_pib %>%
   dplyr::mutate(var1_PIB = t / t_1 - 1,
                 var4_PIB = t / t_4 - 1) %>%
   dplyr::select(date, var1_PIB, var4_PIB)
-# TODO: to get GDP in level, apply the quarterly variations backward to the last level of GDP available (for the last base)
 
-
+## merge GDP and survey data
 full_data <- corrected_nonrevised_pib %>%
   dplyr::full_join(full_survey_data, by = "date")
 
@@ -146,45 +125,8 @@ full_data <- corrected_nonrevised_pib %>%
 prevision_data <- full_data %>%
   dplyr::arrange(date) %>%
   dplyr::filter(date >= lubridate::ymd("2007-10-01") & date <= lubridate::ymd("2019-10-01"))
-# %>%
-#   dplyr::mutate_if(is.numeric, list(~ifelse(date %in% c(lubridate::ymd("2008-10-01"), lubridate::ymd("2009-01-01")), NA_real_, .))) # remove outliers
 
-
-## OLD method to correct for change bases -------------------
-# TODO: create a function for that (across columns) in data_preparator.R // see which method is the best [utile uniquement pour voir les révisions]
-# TODO: test <- nonrevised_pib %>% mutate_if(is.numeric, list(~round(((./lag(.))-1)*100,1)))
-# # compare revised and nonrevised data
-# compare_pib <- merge_nonrevised_and_revised_data(revised_data = revised_pib, nonrevised_data = nonrevised_pib,
-#                                                   dimension_to_keep = "PIB", column_to_use_for_revised_data = value, column_to_use_for_nonrevised_data = t, data_label = "pib")
-#
-# # get nonrevised data corrected for the effects of changing bases
-# ## TO CORRECT the non-revised data for the effects of changing bases:
-# pib_changing_base_shift_2007_2010 <- get_changing_base_shift(compare_pib, "2007-10-01", "2010-10-01")
-# pib_changing_base_shift_2011_2013 <- get_changing_base_shift(compare_pib, "2011-01-01", "2013-10-01")
-# pib_changing_base_shift_2014_2018 <- get_changing_base_shift(compare_pib, "2014-01-01", "2018-01-01")
-# rebased_nonrevised_pib <- nonrevised_pib %>%
-#   dplyr::select(date, dimension, t, t_1) %>% # dplyr::select(matches("(date)|(dimension)|(^t$)|(^t_[1-9]$)")) # To keep severy t_XX
-#   dplyr::filter(dimension == "PIB") %>%
-#   dplyr::mutate(dimension = "nonrevised_pib") %>%
-#   dplyr::mutate(
-#     t = case_when(
-#       date >= lubridate::ymd("2007-10-01") & lubridate::year(date) < 2011 ~ t + pib_changing_base_shift_2007_2010,
-#       lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ t + pib_changing_base_shift_2011_2013,
-#       lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ t + pib_changing_base_shift_2014_2018,
-#       TRUE ~ t),
-#     t_1 = case_when(
-#       date >= lubridate::ymd("2007-10-01") & lubridate::year(date) < 2011 ~ t_1 + pib_changing_base_shift_2007_2010,
-#       lubridate::year(date) >= 2011 & lubridate::year(date) <= 2013 ~ t_1 + pib_changing_base_shift_2011_2013,
-#       lubridate::year(date) >= 2014 & date <= lubridate::ymd("2018-01-01") ~ t_1 + pib_changing_base_shift_2014_2018,
-#       TRUE ~ t_1)
-#   ) %>%
-#   dplyr::mutate(var1_PIB_reb = t / lag(t) - 1,
-#                 var1_PIB_reb_t_t_1 = t / t_1 -1)
-# ---------------------------------------------------------
-
-
-# 4. do the prevision ---------------------------------------------------------------------------
-
+# 4. realise forcasts "in real-time" with vintage data -----------------------------------------------------------------
 real_time_out_of_sample_current_quarter_nowcasting <- create_summary_for_several_simple_out_of_sample_nowcasting(y_var = "var1_PIB",
                                                                                                                  list_x_var = colnames(prevision_data)[!(colnames(prevision_data) %in% c("date", "var1_PIB", "var4_PIB"))],
                                                                                                                  reg_data = prevision_data,
@@ -255,7 +197,7 @@ graph_donnees_conj(title = "Nowcasting hors échantillon du trimestre T",
                      labels = scales::percent_format(accuracy = 0.1))
 
 
-# 5. compare with results with revised data ---------------------------------------------------------------------------
+# 5. realise forecasts made "in pseudo real-time" with revised data ----------------------------------------------------
 
 revised_pib_for_prev <- revised_pib %>%
   dplyr::mutate(var1_PIB_revised = value / lag(value) - 1) %>%
@@ -270,7 +212,7 @@ pseudo_real_time_out_of_sample_current_quarter_nowcasting <- create_summary_for_
                                                                                                                         reg_data = prevision_data_rev,
                                                                                                                         window_size = 32) # Note: 32 quarters = 8 years
 
-# 5.1. estimation of the model in pseudp real time - comparison with revised data
+# 5.1. estimation of the model in pseudo real time - comparison with revised data
 nowcasting_summaries_pseudo_real_time <- pseudo_real_time_out_of_sample_current_quarter_nowcasting %>%
   dplyr::group_by(dimension) %>%
   dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
@@ -281,7 +223,7 @@ nowcasting_summaries_pseudo_real_time <- pseudo_real_time_out_of_sample_current_
   dplyr::arrange(horizon, rmse) %>%
   dplyr::select(horizon, everything())
 
-# 5.1. estimation of the model in pseudo real time - comparison with non-revised data
+# 5.2. estimation of the model in pseudo real time - comparison with non-revised data
 PE_expected_values <- real_time_out_of_sample_current_quarter_nowcasting %>%
   dplyr::filter(dimension == "insee_global_m1") %>%  # just take any dimension
   dplyr::select(date, expected_values) %>%
@@ -300,7 +242,7 @@ nowcasting_summaries_pseudo_real_time_PE <- nowcasting_summaries_pseudo_real_tim
   dplyr::select(horizon, everything())
 
 
-# 6. Check stability of model selection ---------------------------------------------------------------------------
+# 6. Check stability of model selection --------------------------------------------------------------------------------
 
 table_model_stability <- real_time_out_of_sample_current_quarter_nowcasting %>%
   dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)"))
@@ -329,8 +271,7 @@ table_model_stability_hlead <- table_model_stability %>%
   dplyr::filter(reg_rmse == min(reg_rmse)) %>%
   dplyr::select(date, dimension, reg_rmse)
 
-# 7. Reproduce reality of iterative pseudo-real time exercises  -----------------------------------
-
+# 7. Reproduce reality of iterative pseudo-real time exercises  --------------------------------------------------------
 QUARTERS_TO_LOAD <- c("15T3PE", "15T4PE", "16T1PE", "16T2PE", "16T3PE", "16T4PE", "17T1PE", "17T2PE", "17T3PE", "17T4PE", "18T1PE", "18T2PE", "18T3PE", "18T4PE", "19T1PE", "19T2PE", "19T3PE")
 QUARTERS_TO_PREDICT <- c("2015-10-01", "2016-01-01", "2016-04-01", "2016-07-01", "2016-10-01", "2017-01-01", "2017-04-01", "2017-07-01", "2017-10-01", "2018-01-01", "2018-04-01", "2018-07-01", "2018-10-01", "2019-01-01", "2019-04-01", "2019-07-01", "2019-10-01")
 
@@ -369,7 +310,7 @@ nowcasting_summaries_reality_exercise <- nowcasting_summaries_reality_exercise %
   dplyr::select(horizon, everything())
 
 
-# 8. data for future leakage box  -----------------------------------
+# 8. data for future leakage box  --------------------------------------------------------------------------------------
 
 # load revised data
 REDOWNLOAD_REVISED_IPI_DATA <- FALSE
@@ -451,7 +392,7 @@ production_ipi_data <- nonrevised_production_for_prev %>%
   dplyr::full_join(revised_ipi_for_prev_2023, by = "date") %>%
   dplyr::filter(date >= lubridate::ymd("2011-01-01") & date <= lubridate::ymd("2019-10-01"))
 
-# END - export data -------------------------------------------------------------------------------
+# export data ----------------------------------------------------------------------------------------------------------
 
 data_for_excel_figure_m1 <- graph_data %>%
   dplyr::filter(horizon %in% c("expected", "m1")) %>%
