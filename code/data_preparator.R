@@ -101,7 +101,7 @@ get_quarterly_variation_for_nonrevised_monthly_data <- function(data, month_posi
     dplyr::select(-month_position) %>%
     ungroup()
 
-    return(quarterly_data)
+  return(quarterly_data)
 }
 
 month_to_quarter_for_nonrevised_data <- function(data, month_position_of_quarters = NULL) {
@@ -135,14 +135,14 @@ month_to_quarter_for_nonrevised_data <- function(data, month_position_of_quarter
   return(quarterly_data)
 }
 
-keep_available_months_in_survey_data <-function(data_split_by_month, insee_month_position, pmi_month_position){
+keep_available_months_in_survey_data <- function(data_split_by_month, insee_month_position, pmi_month_position) {
   message("Actuellement, cette fonction ne marche que pour les données Insee et PMI.")
   dimensions <- unique(data_split_by_month$dimension)
 
   # define the regex
   insee_regex <- convert_month_position_to_subset_regex(insee_month_position)
   pmi_regex <- convert_month_position_to_subset_regex(pmi_month_position)
-  complete_regex <- paste0("(insee.*_m(",insee_regex,")$)|(pmi.*_m(",pmi_regex,")$)")
+  complete_regex <- paste0("(insee.*_m(", insee_regex, ")$)|(pmi.*_m(", pmi_regex, ")$)")
 
   # select the available dimensions
   available_dimensions <- stringr::str_subset(dimensions, complete_regex)
@@ -151,11 +151,11 @@ keep_available_months_in_survey_data <-function(data_split_by_month, insee_month
 }
 
 convert_month_position_to_subset_regex <- function(month_position) {
-  if(month_position == 1){
+  if (month_position == 1) {
     return("1")
-  } else if (month_position == 2){
+  } else if (month_position == 2) {
     return("1|2")
-  } else if (month_position == 3){
+  } else if (month_position == 3) {
     return(".")
   } else {
     stop("The available month_position are: 1, 2 and 3 even if that is the month 2 or 3 of the quarter T-1; you will then use lags.")
@@ -285,7 +285,7 @@ get_transformation_function <- function(transformation_type) {
 }
 
 
-get_variation_for <- function(data, variation_type, nbr_lag = 1, nbr_lead = 1, dimensions_to_transform = NULL, dimensions_to_exclude = NULL, add_option = FALSE, keep_prefix = FALSE) {
+get_variation_for <- function(data, variation_type, nbr_lag = 1, nbr_lead = 1, dimensions_to_transform = NULL, dimensions_to_exclude = NULL, add_option = FALSE, keep_prefix = FALSE, prefix = NULL) {
   # select the dimensions
   if (is.null(dimensions_to_transform)) {
     dimensions_to_transform <- unique(data$dimension)
@@ -298,25 +298,25 @@ get_variation_for <- function(data, variation_type, nbr_lag = 1, nbr_lead = 1, d
 
   # perform the transformation
   if (variation_type == "difference") {
-    prefix <- paste0("diff", nbr_lag)
+    if (is.null(prefix)) { prefix <- paste0("diff", nbr_lag) }
     data_with_variation <- data_with_variation %>%
       dplyr::group_by(dimension) %>%
       dplyr::mutate(variation = value - dplyr::lag(value, n = nbr_lag)) %>%
       dplyr::ungroup()
   } else if (variation_type == "growth_rate") {
-    prefix <- paste0("var", nbr_lag)
+    if (is.null(prefix)) { prefix <- paste0("var", nbr_lag) }
     data_with_variation <- data_with_variation %>%
       dplyr::group_by(dimension) %>%
       dplyr::mutate(variation = (value / dplyr::lag(value, n = nbr_lag)) - 1) %>%
       dplyr::ungroup()
   } else if (variation_type == "lag") {
-    prefix <- paste0("lag", nbr_lag)
+    if (is.null(prefix)) { prefix <- paste0("lag", nbr_lag) }
     data_with_variation <- data_with_variation %>%
       dplyr::group_by(dimension) %>%
       dplyr::mutate(variation = dplyr::lag(value, n = nbr_lag)) %>%
       dplyr::ungroup()
   } else if (variation_type == "lead") {
-    prefix <- paste0("lead", nbr_lead)
+    if (is.null(prefix)) { prefix <- paste0("lead", nbr_lead) }
     data_with_variation <- data_with_variation %>%
       dplyr::group_by(dimension) %>%
       dplyr::mutate(variation = dplyr::lead(value, n = nbr_lead)) %>%
