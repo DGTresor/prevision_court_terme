@@ -17,7 +17,9 @@ source("../old_scripts_from_prevision_production_manuf/loading_data.R", encoding
 PATH_TO_PMI_DATA <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/6. Enquêtes PMI/4. Préparation mail réaction PMI/Données/Data PMI.xlsx"
 PATH_TO_FR_DEROULEUR <- list(path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/FR_Dérouleur.xlsx",
                              sheet = "Données enquêtes")
-PATH_TO_DATA_FOR_NOWCASTING <- "./input/donnees_pour_nowcasting_en_temps_reel.xlsx"
+# PATH_TO_DATA_FOR_NOWCASTING <- "./input/donnees_pour_nowcasting_en_temps_reel.xlsx"
+PATH_TO_DATA_FOR_NOWCASTING <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Stages/Antoine_Claisse/donnees/donnees_pour_nowcasting_en_temps_reel.xlsx"
+
 
 # PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
 PMI_DIMENSIONS_LIST <- list(

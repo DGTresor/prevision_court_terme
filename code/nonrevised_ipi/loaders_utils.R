@@ -21,7 +21,7 @@ construct_nonrevised_ipi_from_scratch <- function(files_list, file_type2files_li
   for (file_name in names(files_list)) {
     print(paste("On lit le fichier :", file_name))
     loader <- get_loader(file_name, file_type2files_list, loader_provider)
-    new_data <- loader(files_list[[file_name]], data_correction = "CJO-CVS")
+    new_data <- loader(files_list[[file_name]], data_correction = data_correction)
     df <- construct_nonrevised_series(df, new_data, date_granularity = "month", number_previous_values = number_previous_values)
     rm(new_data)
   }
