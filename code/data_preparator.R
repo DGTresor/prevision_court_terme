@@ -89,17 +89,39 @@ get_quarterly_variation_for_nonrevised_monthly_data <- function(data, month_posi
       dplyr::mutate(var1 = (t + t_1 + t_2) / (t_3 + t_4 + t_5) - 1)
   }
 
+  # select the columns we need
+  if (keep_level_columns) {
+    if (month_position_of_quarters == 1) {
+      quarterly_data <- quarterly_data %>%
+        dplyr::rename(m1 = t) %>%
+        dplyr::mutate(m3 = dplyr::lead(t_1, n = 1),  # if we are in the 1st month of quarter T, then the month before (t_1) is the 3rd month of quarter T-1 (so we need to lead the column by n = 1).
+                      m2 = dplyr::lead(t_2, n = 1))  # if we are in the 1st month of quarter T, then two months before (t_2) is the 2nd month of quarter T-1 (so we need to lead the column by n = 1).
+
+    } else if (month_position_of_quarters == 2) {
+      quarterly_data <- quarterly_data %>%
+        dplyr::rename(m2 = t,
+                      m1 = t_1) %>%
+        dplyr::mutate(m3 = dplyr::lead(t_2, n = 1))  # if we are in the 2nd month of quarter T, then two months before (t_2) is the 3rd month of quarter T-1 (so we need to lead the column by n = 1).
+    } else {
+      # this is the case month_position_of_quarters == 3
+      quarterly_data <- quarterly_data %>%
+        dplyr::rename(m3 = t,
+                      m2 = t_1,
+                      m1 = t_2)
+    }
+  }
+  quarterly_data <- quarterly_data %>%
+    dplyr::select(-matches("^t.*")) %>%
+    dplyr::select(-month_position) %>%
+    ungroup()
+
   # clean data
   if (!is.null(quarterly_variation_column_name)) {
     names(quarterly_data)[names(quarterly_data) == "var1"] <- paste("var1", quarterly_variation_column_name, sep = "_")
+    names(quarterly_data)[names(quarterly_data) == "m1"] <- paste( quarterly_variation_column_name, "m1", sep = "_")
+    names(quarterly_data)[names(quarterly_data) == "m2"] <- paste(quarterly_variation_column_name, "m2", sep = "_")
+    names(quarterly_data)[names(quarterly_data) == "m3"] <- paste(quarterly_variation_column_name, "m3", sep = "_")
   }
-  if (!keep_level_columns) {
-    quarterly_data <- quarterly_data %>%
-      dplyr::select(-matches("^t.*"))
-  }
-  quarterly_data <- quarterly_data %>%
-    dplyr::select(-month_position) %>%
-    ungroup()
 
   return(quarterly_data)
 }

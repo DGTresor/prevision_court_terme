@@ -16,6 +16,7 @@ library(forecast)
 library(ggplot2)
 
 source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_preparator.R", encoding = "utf-8")
 
@@ -46,20 +47,18 @@ save(nonrevised_pib, file = paste0("./data/", "nonrevised_pib_", max(unique(nonr
 
 # 2. load survey data -----------------------------------------------------------------------------------------------
 
-# survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING)
-
-sheets_to_load <- c("pmi_flash", "indices_synthetiques", "pmi_sous_soldes", "insee_contraintes_prod", "bdf_sous_soldes")
+sheets_to_load <- c("pmi_flash", "indices_synthetiques", "pmi_sous_soldes", "insee_contraintes_prod", "bdf_sous_soldes", "donnees_financieres_mensuelles")
 survey_data <- NULL
 for (sheet in sheets_to_load) {
   new_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = sheet)
 
   # deal with the specific case of pmi_industrie_production_passee, which exists in the sheets indices_synthetiques & pmi_sous_soldes
-  if(sheet == "pmi_sous_soldes" && "indices_synthetiques" %in% sheets_to_load){
+  if (sheet == "pmi_sous_soldes" && "indices_synthetiques" %in% sheets_to_load) {
     new_data <- new_data %>%
       dplyr::filter(dimension != "pmi_industrie_production_passee")
   }
 
-  if(is.null(survey_data)){
+  if (is.null(survey_data)) {
     survey_data <- new_data
   } else {
     survey_data <- survey_data %>%
@@ -68,6 +67,11 @@ for (sheet in sheets_to_load) {
   rm(new_data)
 }
 
+# traitement des données financières journalières (jours ouvrés) : prix de l'or et du pétrole
+price_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = "donnees_financieres_jours_ouvra")
+
+
+# transformation des données
 survey_data_split <- survey_data %>%
   month_to_quarter(transformation_type = "split")
 survey_data_split <- survey_data_split %>%
@@ -75,19 +79,43 @@ survey_data_split <- survey_data_split %>%
 # Note : we create lead only for the indices at month 1
 
 survey_data_growth_rate <- survey_data_split %>%
-  get_variation_for(variation_type = "growth_rate", add_option = TRUE) # TODO: ATTENTION, ça donne la comparaison d'un mois 1 avec le mois 1 du trimestre passé, i.e. glissement trimestriel
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE, prefix = "gt") # création du glissement trimestriel (en taux de croissance)
 
 survey_data_difference <- survey_data_split %>%
-  get_variation_for(variation_type = "difference", keep_prefix = TRUE) # TODO: ATTENTION, ça donne la comparaison d'un mois 1 avec le mois 1 du trimestre passé, i.e. glissement trimestriel
+  get_variation_for(variation_type = "difference", keep_prefix = TRUE, prefix = "difftrim") # création du glissement trimestriel (en différence)
+
+# TODO: test: création des variations mensuelles seulement pour les indicateurs financiers
+survey_data_vm <- survey_data %>%
+  dplyr::filter(dimension %in% stringr::str_subset(unique(dimension), pattern = "^finance_.*")) %>%
+  get_variation_for(variation_type = "growth_rate", keep_prefix = TRUE, prefix = "vm") %>%
+  month_to_quarter(transformation_type = "split")
 
 full_survey_data <- survey_data_growth_rate %>%
   dplyr::bind_rows(survey_data_difference) %>%
+  dplyr::bind_rows(survey_data_vm) %>%
   convert_to_wide_format()
 # %>% dplyr::select(-contains("construction"))
 
-# save(full_survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_", today(), ".RData"))
+save(full_survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_tresor_eco_", today(), ".RData"))
 
-# 3. create the dataframes for the prevision ---------------------------------------------------------------------------
+
+# 3. load IPI  ---------------------------------------------------------------------------------------------------------
+
+IPI_DATA_FILES <- get_ipi_data_files(IPI_DATA_FOLDER)
+# TODO: check where to put that -> in a README.md // Note: convention de nommage des fichiers d'IPI: la date du nom de fichier doit contenir la dernière date pour laquelle nous avons l'IPI (et non la date de publication)
+IPI_FILES_TYPES <- list("sectors_in_line_one_label_loader" = c("200901"),
+                        "sectors_in_line_two_labels_loader" = stringr::str_subset(names(IPI_DATA_FILES), "(^2009(?!(01)).*)|(^2010(?!(11)|(12)).*)"))
+
+# preparation of the matrix
+nonrevised_ipi <- construct_nonrevised_ipi_from_scratch(files_list = IPI_DATA_FILES,
+                                                        file_type2files_list = IPI_FILES_TYPES,
+                                                        number_previous_values = 166, #24
+                                                        data_correction = "CJO-CVS") # TODO: data_correction as argument within the function
+
+save(nonrevised_ipi, file = paste0("./data/", "nonrevised_ipi_", max(unique(nonrevised_ipi[["date"]])), ".RData"))
+
+
+# 4. create the dataframes for the prevision ---------------------------------------------------------------------------
 
 ## Note that what matters is the PIB quarterly variable => get the quarterly variable published at each period and then apply
 ## the variations to the level to get rebased data
@@ -99,12 +127,55 @@ corrected_nonrevised_pib <- nonrevised_pib %>%
   dplyr::mutate(dimension = "nonrevised_pib") %>%
   dplyr::mutate(var1_PIB = t / t_1 - 1,
                 var4_PIB = t / t_4 - 1) %>%
-  dplyr::select(date, var1_PIB, var4_PIB)
-# TODO: to get GDP in level, apply the quarterly variations backward to the last level of GDP available (for the last base)
+  dplyr::select(date, var1_PIB)  # TODO: pou l'instant, le glissement annuel du PIB ne nous sert pas (var4_PIB)
 
+# get nonrevised IPI
+corrected_nonrevised_ipi <- nonrevised_ipi %>%
+  dplyr::filter(dimension %in% c("BE", "CZ", "DE"))
 
-full_data <- corrected_nonrevised_pib %>%
-  dplyr::full_join(full_survey_data, by = "date")
+# création de la variation mensuelle de l'IPI
+ipi_vm <- corrected_nonrevised_ipi %>%
+  dplyr::select(date, dimension, t, t_1) %>%
+  dplyr::mutate(value = t / t_1 - 1) %>%
+  dplyr::mutate(dimension = paste0("vm_ipi_", dimension)) %>%
+  dplyr::select(date, dimension, value) %>%
+  month_to_quarter(transformation_type = "split")
+
+# création du glissement trimestriel de l'IPI
+ipi_vt <- corrected_nonrevised_ipi %>%
+  dplyr::select(date, dimension, t, t_3) %>%
+  dplyr::mutate(value = t / t_3 - 1) %>%
+  dplyr::mutate(dimension = paste0("gt_ipi_", dimension)) %>%
+  dplyr::select(date, dimension, value) %>%
+  month_to_quarter(transformation_type = "split")
+
+# création du glissement annuel de l'IPI
+ipi_ga <- corrected_nonrevised_ipi %>%
+  dplyr::select(date, dimension, t, t_12) %>%
+  dplyr::mutate(value = t / t_12 - 1) %>%
+  dplyr::mutate(dimension = paste0("ga_ipi_", dimension)) %>%
+  dplyr::select(date, dimension, value) %>%
+  month_to_quarter(transformation_type = "split")
+
+# création des IPI aux différents mois du trimestre + création de la variation trimestrielle de l'IPI (avec acquis au dernier mois disponible)
+ipi_blocking_method <- corrected_nonrevised_ipi %>%
+  get_quarterly_variation_for_nonrevised_monthly_data(quarterly_variation_column_name = "ipi", keep_level_columns = TRUE) %>%
+  tidyr::pivot_wider(id_cols = colnames(ipi_blocking_method),
+                     names_from = dimension,
+                     values_from = c(ipi_m1, ipi_m2, ipi_m3, var1_ipi))
+names(test) <- str_replace(names(test), pattern = "(ipi)_(m[:digit:])_([:alpha:]{2})", replacement = "\\1_\\3_\\2")
+
+# joindre toutes les données d'IPI entre elles
+ipi_data <- ipi_vm %>%
+  dplyr::bind_rows(ipi_vt) %>%
+  dplyr::bind_rows(ipi_ga) %>%
+  convert_to_wide_format() %>%
+  dplyr::full_join(ipi_blocking_method, by = "date")
+
+# joindre tous les données entre elles
+full_data <- nonrevised_pib %>%
+  dplyr::full_join(full_survey_data, by = "date") %>%
+    dplyr::full_join(ipi_data, by = "date")
 
 # prepare data for regression
 prevision_data <- full_data %>%
