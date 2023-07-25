@@ -118,7 +118,7 @@ get_quarterly_variation_for_nonrevised_monthly_data <- function(data, month_posi
   # clean data
   if (!is.null(quarterly_variation_column_name)) {
     names(quarterly_data)[names(quarterly_data) == "var1"] <- paste("var1", quarterly_variation_column_name, sep = "_")
-    names(quarterly_data)[names(quarterly_data) == "m1"] <- paste( quarterly_variation_column_name, "m1", sep = "_")
+    names(quarterly_data)[names(quarterly_data) == "m1"] <- paste(quarterly_variation_column_name, "m1", sep = "_")
     names(quarterly_data)[names(quarterly_data) == "m2"] <- paste(quarterly_variation_column_name, "m2", sep = "_")
     names(quarterly_data)[names(quarterly_data) == "m3"] <- paste(quarterly_variation_column_name, "m3", sep = "_")
   }
@@ -183,6 +183,44 @@ convert_month_position_to_subset_regex <- function(month_position) {
     stop("The available month_position are: 1, 2 and 3 even if that is the month 2 or 3 of the quarter T-1; you will then use lags.")
   }
 }
+
+
+day_to_month <- function(data, transformation_type) {
+  monthly_data <- data
+
+  if (!(transformation_type %in% c("mean", "carry_over_mean"))) {
+    stop("Choisissez \"mean\" ou \"carry_over_mean\" comme argument transformation_type pour la fonction day_to_month().")
+  }
+
+  # perform the transformation
+  if (transformation_type == "carry_over_mean") {  # TODO: does not work perfectly, needs improvements (does not consider that the data frequency is working day and not everyday)
+    # when a month is incomplete, the last value observed is imputed to the missing values and then the monthly mean is calculated
+    # otherwise, for "mean": when a month is incomplete, the monthly mean is imputed to the missing values
+
+    # define the extension period
+    month_end_date <- lubridate::ceiling_date(max(unique(monthly_data$date)), unit = "month", change_on_boundary = FALSE) - days(1)  # because of the rounding, we need to remove one day, otherwise we are at the beginning of the next month
+    extended_dates <- seq.Date(from = as.Date(min(unique(monthly_data$date))),
+                               to = lubridate::ymd(month_end_date),
+                               by = "day")
+    empty_dataset_with_extended_dates <- data.frame("date" = rep(extended_dates, times = length(unique(monthly_data$dimension))),
+                                                    "dimension" = rep(unique(monthly_data$dimension), each = length(extended_dates)))
+
+    # extend the data
+    monthly_data <- monthly_data %>%
+      dplyr::full_join(empty_dataset_with_extended_dates, by = c("date", "dimension")) %>%  # add the dates we need at the end of the last month for which we have data
+      fill_only_last_values(value)
+  }
+
+  # perform the monthly mean
+  monthly_data <- monthly_data %>%
+    dplyr::mutate(monthly_date = lubridate::floor_date(date, unit = "month")) %>%
+    dplyr::group_by(monthly_date, dimension) %>%
+    dplyr::summarise(value = mean(value, na.rm = TRUE), .groups = "drop") %>%
+    dplyr::rename(date = monthly_date)
+
+  return(monthly_data)
+}
+
 
 ########################################################################################################################
 ########################################################################################################################
@@ -391,4 +429,22 @@ monthly_date2quarterly_date <- function(data) {
     dplyr::mutate(date = lubridate::make_date(year = year, month = month)) %>% # TODO: check difference with lubridate::ymd(paste(year, month, "01", sep = "-"))
     select(-c(month, quarter, year))
   return(data_with_quarterly_date)
+}
+
+fill_only_last_values <- function(data, column_to_fill) {
+  column_to_fill <- dplyr::enquo(column_to_fill)     # NB: dplyr syntax to call columns without knowing their names
+  last_available_data <- data %>%
+    dplyr::filter(!is.na(!!column_to_fill)) %>%
+    dplyr::group_by(dimension) %>%
+    dplyr::filter(date == max(date)) %>%
+    dplyr::rename(last_date = date,
+                  last_available_value = !!column_to_fill)
+
+  filled_data <- data %>%
+    dplyr::left_join(last_available_data, by = "dimension") %>%
+    dplyr::group_by(dimension) %>%
+    dplyr::mutate(!!column_to_fill := ifelse(date > last_date, last_available_value, !!column_to_fill)) %>%
+    dplyr::ungroup() %>%
+    dplyr::select(-last_date, -last_available_value)
+  return(filled_data)
 }
