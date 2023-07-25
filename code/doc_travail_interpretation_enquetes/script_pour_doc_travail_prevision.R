@@ -76,7 +76,7 @@ if (UPDATE_NONREVISED_PIB_DATA) {
 
 # 3. load survey data --------------------------------------------------------------------------------------------------
 if (UPDATE_SURVEY_DATA) {
-  survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = "indices_synthetiques")
+  survey_data <- load_data_for_nowcasting_for_sheet(PATH_TO_DATA_FOR_NOWCASTING, sheet = "indices_synthetiques")
 
   save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_", lubridate::today(), ".RData"))
 

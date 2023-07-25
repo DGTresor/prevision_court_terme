@@ -75,7 +75,28 @@ BDF_DIMENSIONS_LIST <- list(
 #   return(most_recent_file)
 # }
 
-load_data_for_nowcasting <- function(path_to_data, sheet = "indices_synthetiques") {
+load_data_for_nowcasting <- function(path_to_data, sheets_to_load) {
+  survey_data <- NULL
+  for (sheet in sheets_to_load) {
+    new_data <- load_data_for_nowcasting_for_sheet(path_to_data = path_to_data, sheet = sheet)
+
+    # deal with the specific case of pmi_industrie_production_passee, which exists in the sheets indices_synthetiques & pmi_sous_soldes
+    if (sheet == "pmi_sous_soldes" && "indices_synthetiques" %in% sheets_to_load) {
+      new_data <- new_data %>%
+        dplyr::filter(dimension != "pmi_industrie_production_passee")
+    }
+
+    if (is.null(survey_data)) {
+      survey_data <- new_data
+    } else {
+      survey_data <- survey_data %>%
+        dplyr::bind_rows(new_data)
+    }
+    rm(new_data)
+  }
+}
+
+load_data_for_nowcasting_for_sheet <- function(path_to_data, sheet = "indices_synthetiques") {
   data <- readxl::read_xlsx(path_to_data, sheet = sheet)
   data <- data[3:nrow(data),] %>%
     dplyr::mutate(date = as.Date(as.numeric(date), origin = "1900-01-01") - days(2)) %>%
