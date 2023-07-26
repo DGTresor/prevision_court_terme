@@ -94,6 +94,7 @@ load_data_for_nowcasting <- function(path_to_data, sheets_to_load) {
     }
     rm(new_data)
   }
+  return(survey_data)
 }
 
 load_data_for_nowcasting_for_sheet <- function(path_to_data, sheet = "indices_synthetiques") {

@@ -47,29 +47,16 @@ save(nonrevised_pib, file = paste0("./data/", "nonrevised_pib_", max(unique(nonr
 
 # 2. load survey data -----------------------------------------------------------------------------------------------
 
-sheets_to_load <- c("pmi_flash", "indices_synthetiques", "pmi_sous_soldes", "insee_contraintes_prod", "bdf_sous_soldes", "donnees_financieres_mensuelles")
-survey_data <- NULL
-for (sheet in sheets_to_load) {
-  new_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = sheet)
+sheets_to_load <- c("pmi_flash", "indices_synthetiques", "pmi_sous_soldes", "insee_sous_soldes", "insee_contraintes_prod", "bdf_sous_soldes", "donnees_financieres_mensuelles")
+survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheets_to_load = sheets_to_load)
 
-  # deal with the specific case of pmi_industrie_production_passee, which exists in the sheets indices_synthetiques & pmi_sous_soldes
-  if (sheet == "pmi_sous_soldes" && "indices_synthetiques" %in% sheets_to_load) {
-    new_data <- new_data %>%
-      dplyr::filter(dimension != "pmi_industrie_production_passee")
-  }
 
-  if (is.null(survey_data)) {
-    survey_data <- new_data
-  } else {
-    survey_data <- survey_data %>%
-      dplyr::bind_rows(new_data)
-  }
-  rm(new_data)
-}
 
 # traitement des données financières journalières (jours ouvrés) : prix de l'or et du pétrole
-price_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheet = "donnees_financieres_jours_ouvra")
-
+price_data <- load_data_for_nowcasting_for_sheet(PATH_TO_DATA_FOR_NOWCASTING, sheet = "donnees_financieres_jours_ouvra") %>%
+  day_to_month(transformation_type = "carry_over_mean")
+price_data <- price_data %>%
+  dplyr::bind_rows(price_data)
 
 # transformation des données
 survey_data_split <- survey_data %>%
@@ -82,7 +69,7 @@ survey_data_growth_rate <- survey_data_split %>%
   get_variation_for(variation_type = "growth_rate", add_option = TRUE, prefix = "gt") # création du glissement trimestriel (en taux de croissance)
 
 survey_data_difference <- survey_data_split %>%
-  get_variation_for(variation_type = "difference", keep_prefix = TRUE, prefix = "difftrim") # création du glissement trimestriel (en différence)
+  get_variation_for(variation_type = "difference", keep_prefix = TRUE, prefix = "difftrim") # création du glissement trimestriel (en différence) # TODO: erase if not performing
 
 # TODO: test: création des variations mensuelles seulement pour les indicateurs financiers
 survey_data_vm <- survey_data %>%
@@ -159,11 +146,12 @@ ipi_ga <- corrected_nonrevised_ipi %>%
 
 # création des IPI aux différents mois du trimestre + création de la variation trimestrielle de l'IPI (avec acquis au dernier mois disponible)
 ipi_blocking_method <- corrected_nonrevised_ipi %>%
-  get_quarterly_variation_for_nonrevised_monthly_data(quarterly_variation_column_name = "ipi", keep_level_columns = TRUE) %>%
+  get_quarterly_variation_for_nonrevised_monthly_data(quarterly_variation_column_name = "ipi", keep_level_columns = TRUE)
+ipi_blocking_method <- ipi_blocking_method %>%
   tidyr::pivot_wider(id_cols = colnames(ipi_blocking_method),
                      names_from = dimension,
                      values_from = c(ipi_m1, ipi_m2, ipi_m3, var1_ipi))
-names(test) <- str_replace(names(test), pattern = "(ipi)_(m[:digit:])_([:alpha:]{2})", replacement = "\\1_\\3_\\2")
+names(ipi_blocking_method) <- str_replace(names(ipi_blocking_method), pattern = "(ipi)_(m[:digit:])_([:alpha:]{2})", replacement = "\\1_\\3_\\2")
 
 # joindre toutes les données d'IPI entre elles
 ipi_data <- ipi_vm %>%
@@ -173,9 +161,9 @@ ipi_data <- ipi_vm %>%
   dplyr::full_join(ipi_blocking_method, by = "date")
 
 # joindre tous les données entre elles
-full_data <- nonrevised_pib %>%
+full_data <- corrected_nonrevised_pib %>%
   dplyr::full_join(full_survey_data, by = "date") %>%
-    dplyr::full_join(ipi_data, by = "date")
+  dplyr::full_join(ipi_data, by = "date")
 
 # prepare data for regression
 prevision_data <- full_data %>%

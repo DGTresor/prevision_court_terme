@@ -82,7 +82,7 @@ get_quarterly_variation_for_nonrevised_monthly_data <- function(data, month_posi
   } else if (month_position_of_quarters == 2) {
     quarterly_data <- quarterly_data %>%
       dplyr::mutate(var1 = (t * 2 + t_1) / (t_2 + t_3 + t_4) - 1)
-    print("Un acquis est calculé au mois 2 puisque le month_position_of_quarters = 1.")
+    print("Un acquis est calculé au mois 2 puisque le month_position_of_quarters = 2.")
   } else {
     # this is the case month_position_of_quarters == 3
     quarterly_data <- quarterly_data %>%
