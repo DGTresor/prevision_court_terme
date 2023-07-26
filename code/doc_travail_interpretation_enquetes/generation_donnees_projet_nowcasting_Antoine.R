@@ -17,6 +17,7 @@ library(ggplot2)
 
 source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/nonrevised_ipi/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("./code/nonrevised_consumption/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_preparator.R", encoding = "utf-8")
 
@@ -49,7 +50,6 @@ save(nonrevised_pib, file = paste0("./data/", "nonrevised_pib_", max(unique(nonr
 
 sheets_to_load <- c("pmi_flash", "indices_synthetiques", "pmi_sous_soldes", "insee_sous_soldes", "insee_contraintes_prod", "bdf_sous_soldes", "donnees_financieres_mensuelles")
 survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheets_to_load = sheets_to_load)
-
 
 
 # traitement des données financières journalières (jours ouvrés) : prix de l'or et du pétrole
@@ -88,7 +88,7 @@ save(full_survey_data, file = paste0("./code/doc_travail_interpretation_enquetes
 
 # 3. load IPI  ---------------------------------------------------------------------------------------------------------
 
-IPI_DATA_FILES <- get_ipi_data_files(IPI_DATA_FOLDER)
+IPI_DATA_FILES <- get_indices_data_files(IPI_DATA_FOLDER)
 # TODO: check where to put that -> in a README.md // Note: convention de nommage des fichiers d'IPI: la date du nom de fichier doit contenir la dernière date pour laquelle nous avons l'IPI (et non la date de publication)
 IPI_FILES_TYPES <- list("sectors_in_line_one_label_loader" = c("200901"),
                         "sectors_in_line_two_labels_loader" = stringr::str_subset(names(IPI_DATA_FILES), "(^2009(?!(01)).*)|(^2010(?!(11)|(12)).*)"))
@@ -102,7 +102,24 @@ nonrevised_ipi <- construct_nonrevised_ipi_from_scratch(files_list = IPI_DATA_FI
 save(nonrevised_ipi, file = paste0("./data/", "nonrevised_ipi_", max(unique(nonrevised_ipi[["date"]])), ".RData"))
 
 
-# 4. create the dataframes for the prevision ---------------------------------------------------------------------------
+# 4. load household consumption  ---------------------------------------------------------------------------------------
+
+CONSUMPTION_DATA_FILES <- get_indices_data_files(CONSUMPTION_DATA_FOLDER)
+
+CONSUMPTION_FILES_TYPES <- list("up_to_201103" = stringr::str_subset(names(CONSUMPTION_DATA_FILES), "(^2009.*)|(^2010.*)|(^2011(01|02|03))"),
+                                "generic" = stringr::str_subset(names(CONSUMPTION_DATA_FILES), "(^2011((0[4-9])|(1.)))|(^201[2-9].*)|(^202[0-3])")
+)
+
+# preparation of the matrix
+nonrevised_consumption <- construct_nonrevised_consumption_from_scratch(files_list = CONSUMPTION_DATA_FILES,
+                                                                        file_type2files_list = CONSUMPTION_FILES_TYPES,
+                                                                        dimensions_list = CONSUMPTION_DIMENSIONS,
+                                                                        number_previous_values = 166)
+
+save(nonrevised_consumption, file = paste0("./data/", "nonrevised_consumption_", max(unique(nonrevised_consumption[["date"]])), ".RData"))
+
+
+# create the dataframes for the prevision ------------------------------------------------------------------------------
 
 ## Note that what matters is the PIB quarterly variable => get the quarterly variable published at each period and then apply
 ## the variations to the level to get rebased data
@@ -116,11 +133,11 @@ corrected_nonrevised_pib <- nonrevised_pib %>%
                 var4_PIB = t / t_4 - 1) %>%
   dplyr::select(date, var1_PIB)  # TODO: pou l'instant, le glissement annuel du PIB ne nous sert pas (var4_PIB)
 
-# get nonrevised IPI
+# get nonrevised IPI -------------------------------------------------------------
 corrected_nonrevised_ipi <- nonrevised_ipi %>%
   dplyr::filter(dimension %in% c("BE", "CZ", "DE"))
 
-# création de la variation mensuelle de l'IPI
+# création de la variation mensuelle de l'IPI  # TODO: delete if not useful
 ipi_vm <- corrected_nonrevised_ipi %>%
   dplyr::select(date, dimension, t, t_1) %>%
   dplyr::mutate(value = t / t_1 - 1) %>%
@@ -129,7 +146,7 @@ ipi_vm <- corrected_nonrevised_ipi %>%
   month_to_quarter(transformation_type = "split")
 
 # création du glissement trimestriel de l'IPI
-ipi_vt <- corrected_nonrevised_ipi %>%
+ipi_gt <- corrected_nonrevised_ipi %>%
   dplyr::select(date, dimension, t, t_3) %>%
   dplyr::mutate(value = t / t_3 - 1) %>%
   dplyr::mutate(dimension = paste0("gt_ipi_", dimension)) %>%
@@ -155,12 +172,58 @@ names(ipi_blocking_method) <- str_replace(names(ipi_blocking_method), pattern = 
 
 # joindre toutes les données d'IPI entre elles
 ipi_data <- ipi_vm %>%
-  dplyr::bind_rows(ipi_vt) %>%
+  dplyr::bind_rows(ipi_gt) %>%
   dplyr::bind_rows(ipi_ga) %>%
   convert_to_wide_format() %>%
   dplyr::full_join(ipi_blocking_method, by = "date")
 
-# joindre tous les données entre elles
+# get nonrevised household consumption -------------------------------------------------------------
+corrected_nonrevised_consumption <- nonrevised_consumption %>%
+  dplyr::filter(dimension %in% c("consommation_biens_manufactures"))
+
+# # création de la variation mensuelle de la consommation des ménages  # TODO: à ajouter si utile, mais je ne pense pas que ça le soit
+# consumption_vm <- corrected_nonrevised_consumption %>%
+#   dplyr::select(date, dimension, t, t_1) %>%
+#   dplyr::mutate(value = t / t_1 - 1) %>%
+#   dplyr::mutate(dimension = paste0("vm_", dimension)) %>%
+#   dplyr::select(date, dimension, value) %>%
+#   month_to_quarter(transformation_type = "split")
+
+# création du glissement trimestriel de la consommation des ménages
+consumption_gt <- corrected_nonrevised_consumption %>%
+  dplyr::select(date, dimension, t, t_3) %>%
+  dplyr::mutate(value = t / t_3 - 1) %>%
+  dplyr::mutate(dimension = paste0("gt_", dimension)) %>%
+  dplyr::select(date, dimension, value) %>%
+  month_to_quarter(transformation_type = "split")
+
+# création du glissement annuel de la consommation des ménages
+consumption_ga <- corrected_nonrevised_consumption %>%
+  dplyr::select(date, dimension, t, t_12) %>%
+  dplyr::mutate(value = t / t_12 - 1) %>%
+  dplyr::mutate(dimension = paste0("ga_", dimension)) %>%
+  dplyr::select(date, dimension, value) %>%
+  month_to_quarter(transformation_type = "split")
+
+# création de la consommation des ménages aux différents mois du trimestre + création de la variation trimestrielle (avec acquis au dernier mois disponible)
+consumption_blocking_method <- corrected_nonrevised_consumption %>%
+  get_quarterly_variation_for_nonrevised_monthly_data(quarterly_variation_column_name = "consommation_biens_manufactures", keep_level_columns = TRUE) %>%
+  dplyr::select(-dimension)
+# ipi_blocking_method <- ipi_blocking_method %>%  # useful only if several dimensions are used
+#   tidyr::pivot_wider(id_cols = colnames(ipi_blocking_method),
+#                      names_from = dimension,
+#                      values_from = c(m1, m2, m3, var1))
+# names(ipi_blocking_method) <- str_replace(names(ipi_blocking_method), pattern = "(ipi)_(m[:digit:])_([:alpha:]{2})", replacement = "\\1_\\3_\\2")
+
+# joindre toutes les données de consommation des ménages entre elles
+consumption_data <- consumption_gt %>%
+  # dplyr::bind_rows(consumption_vm) %>%
+  dplyr::bind_rows(consumption_ga) %>%
+  convert_to_wide_format() %>%
+  dplyr::full_join(consumption_blocking_method, by = "date")
+
+
+# joindre tous les données entre elles --------------------------------------------
 full_data <- corrected_nonrevised_pib %>%
   dplyr::full_join(full_survey_data, by = "date") %>%
   dplyr::full_join(ipi_data, by = "date")
