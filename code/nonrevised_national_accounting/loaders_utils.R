@@ -141,6 +141,23 @@ get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
   return(most_recent_file)
 }
 
+# most_recent_compta_nat_data_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {
+#   file_path <- get_compta_nat_most_recent_file(folder_path, file_name)
+#   suppressMessages(data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
+#
+#   clean_data <- data_cleaner_for_csv(data, dimensions_list_name = dimensions_list_name, list_of_dimensions = dimensions_list)
+#   return(clean_data)
+# }
+#
+# get_compta_nat_most_recent_file <- function(folder_path, file_name) {
+#   # Note: le file_name doit contenir l'extension, e.g. cprvolch.csv
+#   national_account_base_year <- stringr::str_extract(string = folder_path, pattern = "(?<=/)base[:digit:]{4}")
+#   message(paste("Le chemin du dossier pointe actuellement vers", national_account_base_year, "; Pensez à le changer si la base change."))
+#   most_recent_folder <- get_the_most_recent_file(folder_path)
+#   file_path <- file.path(most_recent_folder, file_name)
+#   return(file_path)
+# }
+
 # functions to prepare the files' list ---------------------------------------------------------------------------------
 get_national_accounting_data_files <- function(national_accounting_data_folder, estimation_type, subset_regex = NULL, starting_period = "standard") {
   # define the regex pattern corresponding to the estimation_type

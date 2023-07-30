@@ -55,7 +55,9 @@ survey_data <- load_data_for_nowcasting(PATH_TO_DATA_FOR_NOWCASTING, sheets_to_l
 # traitement des données financières journalières (jours ouvrés) : prix de l'or et du pétrole
 price_data <- load_data_for_nowcasting_for_sheet(PATH_TO_DATA_FOR_NOWCASTING, sheet = "donnees_financieres_jours_ouvra") %>%
   day_to_month(transformation_type = "carry_over_mean")
-price_data <- price_data %>%
+
+# pull all data together
+survey_data <- survey_data %>%
   dplyr::bind_rows(price_data)
 
 # transformation des données
@@ -118,6 +120,32 @@ nonrevised_consumption <- construct_nonrevised_consumption_from_scratch(files_li
 
 save(nonrevised_consumption, file = paste0("./data/", "nonrevised_consumption_", max(unique(nonrevised_consumption[["date"]])), ".RData"))
 
+
+# 5. load unemployment data --------------------------------------------------------------------------------------------
+
+employment_data <- load_employment_data(PATH_TO_EMPLOYMENT_DATA, dimensions_list = EMPLOYMENT_DIMENSIONS_LIST) %>%
+  dplyr::group_by(dimension) %>%
+  dplyr::mutate(value = as.numeric(scale(value))) %>% # centered-reduced data
+  dplyr::ungroup()
+
+# transformation des données
+employment_data_split <- employment_data %>%
+  month_to_quarter(transformation_type = "split")
+employment_data_split <- employment_data_split %>%
+  get_variation_for(variation_type = "lead", nbr_lead = 1, add_option = TRUE, dimensions_to_transform = stringr::str_subset(unique(employment_data_split$dimension), ".*_m1"))
+# Note : we create lead only for the indices at month 1
+
+employment_data_growth_rate <- employment_data_split %>%
+  get_variation_for(variation_type = "growth_rate", add_option = TRUE, prefix = "gt") # création du glissement trimestriel (en taux de croissance)
+
+employment_data_difference <- employment_data_split %>%
+  get_variation_for(variation_type = "difference", keep_prefix = TRUE, prefix = "difftrim") # création du glissement trimestriel (en différence) # TODO: erase if not performing
+
+full_employment_data <- employment_data_growth_rate %>%
+  dplyr::bind_rows(employment_data_difference) %>%
+  convert_to_wide_format()
+
+save(full_employment_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/full_employment_", today(), ".RData"))
 
 # create the dataframes for the prevision ------------------------------------------------------------------------------
 
@@ -209,11 +237,6 @@ consumption_ga <- corrected_nonrevised_consumption %>%
 consumption_blocking_method <- corrected_nonrevised_consumption %>%
   get_quarterly_variation_for_nonrevised_monthly_data(quarterly_variation_column_name = "consommation_biens_manufactures", keep_level_columns = TRUE) %>%
   dplyr::select(-dimension)
-# ipi_blocking_method <- ipi_blocking_method %>%  # useful only if several dimensions are used
-#   tidyr::pivot_wider(id_cols = colnames(ipi_blocking_method),
-#                      names_from = dimension,
-#                      values_from = c(m1, m2, m3, var1))
-# names(ipi_blocking_method) <- str_replace(names(ipi_blocking_method), pattern = "(ipi)_(m[:digit:])_([:alpha:]{2})", replacement = "\\1_\\3_\\2")
 
 # joindre toutes les données de consommation des ménages entre elles
 consumption_data <- consumption_gt %>%
@@ -226,7 +249,9 @@ consumption_data <- consumption_gt %>%
 # joindre tous les données entre elles --------------------------------------------
 full_data <- corrected_nonrevised_pib %>%
   dplyr::full_join(full_survey_data, by = "date") %>%
-  dplyr::full_join(ipi_data, by = "date")
+  dplyr::full_join(ipi_data, by = "date") %>%
+  dplyr::full_join(consumption_data, by = "date") %>%
+  dplyr::full_join(full_employment_data, by = "date")
 
 # prepare data for regression
 prevision_data <- full_data %>%

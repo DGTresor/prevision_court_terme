@@ -50,21 +50,6 @@ consumption_generic_loader <- function(file_path, dimensions_list) {
   return(clean_data)
 }
 
-
-# consumption_generic_loader <- function(file_path, data_correction = "CJO-CVS") {
-#   # get the name of the sheet we want to use according to the data_correction we selected
-#   check_data_correction(data_correction)
-#   sheet_name <- stringr::str_subset(string = readxl::excel_sheets(file_path),
-#                                     pattern = paste0(".*", data_correction, ".*"))
-#   # load the excel file
-#   new_data <- readxl::read_excel(path = file_path, sheet = sheet_name)
-#   # clean the data to fit a proper syntax
-#
-#   clean_data <- data_cleaner_for_generic_loader(new_data)
-#   return(clean_data)
-# }
-
-
 # data cleaners for specific format ------------------------------------------------------------------------------------
 
 data_cleaner_for_up_to_201103_loader <- function(data, dimensions_list) {

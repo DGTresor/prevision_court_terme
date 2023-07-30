@@ -20,6 +20,8 @@ PATH_TO_FR_DEROULEUR <- list(path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthè
 # PATH_TO_DATA_FOR_NOWCASTING <- "./input/donnees_pour_nowcasting_en_temps_reel.xlsx"
 PATH_TO_DATA_FOR_NOWCASTING <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Stages/Antoine_Claisse/donnees/donnees_pour_nowcasting_en_temps_reel.xlsx"
 
+# TODO: use function to get the most recent file
+PATH_TO_EMPLOYMENT_DATA <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Stages/Antoine_Claisse/donnees/donnees_emplois/dares_donnees_nat_cvs_mens_06.2023.xlsx"
 
 # PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
 PMI_DIMENSIONS_LIST <- list(
@@ -40,40 +42,15 @@ BDF_DIMENSIONS_LIST <- list(
   "construction" = "construction"
 )
 
+EMPLOYMENT_DIMENSIONS_LIST <- list(
+  # Note : on veut les données pour la France entière
+  "Catégorie A...10" = "chomage_categorie_a",
+  "Catégories B et C...15" = "chomage_categorie_b_c",
+  "Catégories A, B, C...16" = "chomage_categorie_a_b_c"
+)
+
 # TODO: put all the function below in data_importator.R // functions useful for the independent project of Document de travail
 # functions to load data -----------------------------------------------------------------------------------------------
-
-# most_recent_compta_nat_data_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {
-#   file_path <- get_compta_nat_most_recent_file(folder_path, file_name)
-#   suppressMessages(data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
-#
-#   clean_data <- data_cleaner_for_csv(data, dimensions_list_name = dimensions_list_name, list_of_dimensions = dimensions_list)
-#   return(clean_data)
-# }
-#
-# get_compta_nat_most_recent_file <- function(folder_path, file_name) {
-#   # Note: le file_name doit contenir l'extension, e.g. cprvolch.csv
-#   national_account_base_year <- stringr::str_extract(string = folder_path, pattern = "(?<=/)base[:digit:]{4}")
-#   message(paste("Le chemin du dossier pointe actuellement vers", national_account_base_year, "; Pensez à le changer si la base change."))
-#   most_recent_folder <- get_the_most_recent_file(folder_path)
-#   file_path <- file.path(most_recent_folder, file_name)
-#   return(file_path)
-# }
-
-# get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
-#   # get all the folders' names in the folder
-#   files_names <- list.files(path = folder_path, full.names = FALSE)
-#
-#   # remove certain specific files if needed
-#   if (!is.null(exclusion_list)) {
-#     files_names <- files_names[!(files_names %in% exclusion_list)]
-#   }
-#
-#   # the current alphanumeric classification enables that the last folder is the most recent
-#   most_recent_file <- file.path(folder_path, files_names[length(files_names)])
-#
-#   return(most_recent_file)
-# }
 
 load_data_for_nowcasting <- function(path_to_data, sheets_to_load) {
   survey_data <- NULL
@@ -106,6 +83,30 @@ load_data_for_nowcasting_for_sheet <- function(path_to_data, sheet = "indices_sy
                         values_to = "value",
                         names_to = "dimension")
   return(data)
+}
+
+load_employment_data <- function(path_to_data, dimensions_list, sheet = "Catégories") {
+  suppressMessages(data <- readxl::read_xlsx(path_to_data, sheet = sheet, skip = 8)) # suppress messages to prevent message of columns' type
+  # clean the dataframe
+  clean_data <- data[2:nrow(data),]  # la première ligne contient des labels ; les valeurs commencent à la 2ème ligne
+  names(clean_data)[1] <- "date"     # la première colonne contient les dates
+
+  # keep the columns we need and rename them
+  clean_data <- clean_data %>%
+    dplyr::select(date, names(dimensions_list))
+  # put values in good format
+  clean_data <- clean_data %>%
+    dplyr::mutate(date = as.Date(date)) %>%
+    dplyr::mutate_if(is.character, as.numeric) %>%
+    tidyr::pivot_longer(cols = names(clean_data)[names(clean_data) != "date"],
+                        values_to = "value",
+                        names_to = "dimension")
+
+  # rename the dimensions
+  clean_data <- clean_data %>%
+    dplyr::mutate(dimension = mapper(dimension, dimensions_list))
+
+  return(clean_data)
 }
 
 load_pmi_data_from_excel_all_dimensions <- function(path_to_data, column_list, dimensions_label = NULL) {
