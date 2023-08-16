@@ -502,6 +502,10 @@ create_reality_summary <- function(data_source, files_list, file_type2files_list
   return(reality_exercise_summary)
 }
 
+# helpers --------------------------------------------------------------------------------------------------------------
 
+mapper <- function(column_to_map, map) {
+  return(ifelse(column_to_map %in% names(map), as.character(map[column_to_map]), as.character(column_to_map)))
+}
 
 

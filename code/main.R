@@ -37,7 +37,7 @@ if (ONLY_UPDATE_NONREVISED_IPI_DATA) {
   load("./data/nonrevised_ipi_2023-03-01.RData")
 } else {
   # preparation of the list
-  IPI_DATA_FILES <- get_ipi_data_files(IPI_DATA_FOLDER)
+  IPI_DATA_FILES <- get_indices_data_files(IPI_DATA_FOLDER)
   # TODO: check where to put that -> in a README.md // Note: convention de nommage des fichiers d'IPI: la date du nom de fichier doit contenir la dernière date pour laquelle nous avons l'IPI (et non la date de publication)
   IPI_FILES_TYPES <- list("sectors_in_line_one_label_loader" = c("200901"),
                           "sectors_in_line_two_labels_loader" = stringr::str_subset(names(IPI_DATA_FILES), "(^2009(?!(01)).*)|(^2010(?!(11)|(12)).*)"))
