@@ -8,7 +8,13 @@
 # For revised GDP data: the GDP series from the First Estimation of French National Accounting of the 1st quarter of 2023
 # For survey data: raw survey data have been extracted using the DataInsight software on July 18th, 2023
 
-# Note: GDP in French if PIB. Hence, PIB variables relate to GDP.
+# For individuals outside of the French Treasury, you will not be able to update the data, because the procedure depends on our internal files.
+# So, always set UPDATE_REVISED_PIB_DATA, UPDATE_NONREVISED_PIB_DATA and UPDATE_SURVEY_DATA to FALSE. Also, set IN_FRENCH_TREASURY to FALSE.
+# Note, that the code to update revised and non-revised data is nevertheless available to ensure transparency and enable review.
+# TODO: Data to reproduce the results of teh Document de Travail can be provided upon request.
+
+# Note: GDP in French is "PIB". Hence, PIB variables relate to GDP.
+# Note: samples run from 2007 Q4 to 2019 Q4
 
 # initialise the environment -------------------------------------------------------------------------------------------
 rm(list = ls())
@@ -21,6 +27,8 @@ library(stats)
 library(forecast)
 library(ggplot2)
 
+# TODO - remove dependency to DGTresorGraphes
+
 source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_preparator.R", encoding = "utf-8")
@@ -31,10 +39,10 @@ source("./code/scripts_from_automatisation_reactions/general_graph_functions.R",
 UPDATE_REVISED_PIB_DATA <- FALSE
 UPDATE_NONREVISED_PIB_DATA <- FALSE
 UPDATE_SURVEY_DATA <- FALSE
+IN_FRENCH_TREASURY <- TRUE
 
 # 1. load revised GDP --------------------------------------------------------------------------------------------------
 if (UPDATE_REVISED_PIB_DATA) {
-  # Note: we need data up to the First Estimation (i.e. première estimation in French, PE) of 2019T4 for the doc_travail
   revised_pib <- csv_post_19T2RD_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "23T1PE"),
                                                             folder_name = "23T1PE",
                                                             file_name = "erevolch",
@@ -43,7 +51,7 @@ if (UPDATE_REVISED_PIB_DATA) {
 
   save(revised_pib, file = paste0("./data/", "revised_pib_", max(unique(revised_pib[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
 } else {
-  load("./data/revised_pib_2023-01-01PE.RData")
+  load("./data_doc_travail/revised_pib_2023-01-01PE.RData")
 }
 
 # 2. load nonrevised GDP -----------------------------------------------------------------------------------------------
@@ -71,17 +79,17 @@ if (UPDATE_NONREVISED_PIB_DATA) {
 
   save(nonrevised_pib, file = paste0("./data/", "nonrevised_pib_", max(unique(nonrevised_pib[["date"]])), "PE.RData"))
 } else {
-  load("./data/nonrevised_pib_2023-01-01PE.RData")
+  load("./data_doc_travail/nonrevised_pib_2023-01-01PE.RData")
 }
 
 # 3. load survey data --------------------------------------------------------------------------------------------------
 if (UPDATE_SURVEY_DATA) {
   survey_data <- load_data_for_nowcasting_for_sheet(PATH_TO_DATA_FOR_NOWCASTING, sheet = "indices_synthetiques")
 
-  save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_", lubridate::today(), ".RData"))
+  save(survey_data, file = paste0("./data/survey_data_doc_travail_", lubridate::today(), ".RData"))
 
 } else {
-  load("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_2023-07-18.RData")
+  load("./data_doc_travail/survey_data_doc_travail_2023-07-18.RData")
 }
 
 
@@ -98,7 +106,7 @@ full_survey_data <- survey_data_split %>%
   convert_to_wide_format() %>%
   dplyr::select(date, contains("industrie"), contains("services"), contains("global"), contains("composite"), -contains("production_passee"))
 
-save(full_survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/data_prev_doc_travail_", lubridate::today(), ".RData"))
+save(full_survey_data, file = paste0("./data/data_prev_doc_travail_", lubridate::today(), ".RData"))
 
 
 ## transform GDP data to get its quarterly variation and its annual variation
@@ -298,79 +306,68 @@ table_model_stability_v2_hlead <- table_model_stability_v2 %>%
   dplyr::select(date, dimension, reg_rmse)
 
 # 7. Reproduce reality of iterative pseudo-real time exercises  --------------------------------------------------------
-QUARTERS_TO_LOAD <- c("15T3PE", "15T4PE", "16T1PE", "16T2PE", "16T3PE", "16T4PE", "17T1PE", "17T2PE", "17T3PE", "17T4PE", "18T1PE", "18T2PE", "18T3PE", "18T4PE", "19T1PE", "19T2PE", "19T3PE")
-QUARTERS_TO_PREDICT <- c("2015-10-01", "2016-01-01", "2016-04-01", "2016-07-01", "2016-10-01", "2017-01-01", "2017-04-01", "2017-07-01", "2017-10-01", "2018-01-01", "2018-04-01", "2018-07-01", "2018-10-01", "2019-01-01", "2019-04-01", "2019-07-01", "2019-10-01")
+if (IN_FRENCH_TREASURY) {
+  # Note: this part currently requires to read the local files we have at the French Treasury in a loop
+  # TODO: use the data revision matrix instead of the French Treasury local files
 
-PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE <- get_national_accounting_data_files(NATIONAL_ACCOUNTING_DATA_FOLDER,
-                                                                            estimation_type = "PE",                                         # we keep only the folders containing the 1st estimation of the quarterly accounts (PE)
-                                                                            subset_regex = ".*/(?!((0.)|(11)|(12)|(13)|(14)|(2.)))[:digit:]{2}T[:digit:]PE"     # we take data only from 2015T1; we keep data only up to 2019T4
-)
-PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE <- PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE[3:(length(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE) - 1)] # we start from 2015T3 and up to 2019T3
+  QUARTERS_TO_LOAD <- c("15T3PE", "15T4PE", "16T1PE", "16T2PE", "16T3PE", "16T4PE", "17T1PE", "17T2PE", "17T3PE", "17T4PE", "18T1PE", "18T2PE", "18T3PE", "18T4PE", "19T1PE", "19T2PE", "19T3PE")
+  QUARTERS_TO_PREDICT <- c("2015-10-01", "2016-01-01", "2016-04-01", "2016-07-01", "2016-10-01", "2017-01-01", "2017-04-01", "2017-07-01", "2017-10-01", "2018-01-01", "2018-04-01", "2018-07-01", "2018-10-01", "2019-01-01", "2019-04-01", "2019-07-01", "2019-10-01")
 
-
-PIB_FILES_TYPES_FOR_REALITY_EXERCISE <- list("pre_19T2RD_csv" = stringr::str_subset(names(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE), "(^1(?!((0|1|2|3|4).*)|(5T1PE)|(5T2PE)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*)"),
-                                             "post_19T2RD_xls" = stringr::str_subset(names(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE), "^((19T2RD)|(19T3PE))"))
-
-
-reality_nowcasting_exercise <- create_reality_summary(data_source = "national_accounting",
-                                                      files_list = PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE,
-                                                      file_type2files_list = PIB_FILES_TYPES_FOR_REALITY_EXERCISE,
-                                                      file_name = PIB_FILE_NAME,
-                                                      dimensions_list = PIB_DIMENSIONS,
-                                                      prevision_data = prevision_data,
-                                                      quarters_to_predict = QUARTERS_TO_PREDICT)
+  PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE <- get_national_accounting_data_files(NATIONAL_ACCOUNTING_DATA_FOLDER,
+                                                                              estimation_type = "PE",                                         # we keep only the folders containing the 1st estimation of the quarterly accounts (PE)
+                                                                              subset_regex = ".*/(?!((0.)|(11)|(12)|(13)|(14)|(2.)))[:digit:]{2}T[:digit:]PE"     # we take data only from 2015T1; we keep data only up to 2019T4
+  )
+  PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE <- PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE[3:(length(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE) - 1)] # we start from 2015T3 and up to 2019T3
 
 
-nowcasting_summaries_reality_exercise <- reality_nowcasting_exercise %>%
-  dplyr::full_join(PE_expected_values, by = "date")
-nowcasting_summaries_reality_exercise <- nowcasting_summaries_reality_exercise %>%
-  dplyr::group_by(dimension) %>%
-  dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
-                   # reg_rmse = mean(reg_rmse),
-                   # reg_mae = mean(reg_mae),
-                   rmse = Metrics::rmse(actual = expected_values_PE, predicted = predicted_values),     # ATTENTION! we use expected_values_PE
-                   mae = Metrics::mae(actual = expected_values_PE, predicted = predicted_values), .groups = "drop") %>%   # ATTENTION! we use expected_values_PE
-  dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
-  dplyr::filter(rmse <= 0.0018) %>%
-  dplyr::arrange(horizon, rmse) %>%
-  dplyr::select(horizon, everything())
+  PIB_FILES_TYPES_FOR_REALITY_EXERCISE <- list("pre_19T2RD_csv" = stringr::str_subset(names(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE), "(^1(?!((0|1|2|3|4).*)|(5T1PE)|(5T2PE)|(9T3PE)|(9T3RD)|(9T4PE)|(9T4RD)).*)"),
+                                               "post_19T2RD_xls" = stringr::str_subset(names(PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE), "^((19T2RD)|(19T3PE))"))
 
+
+  reality_nowcasting_exercise <- create_reality_summary(data_source = "national_accounting",
+                                                        files_list = PIB_DATA_FOLDERS_FOR_REALITY_EXERCISE,
+                                                        file_type2files_list = PIB_FILES_TYPES_FOR_REALITY_EXERCISE,
+                                                        file_name = PIB_FILE_NAME,
+                                                        dimensions_list = PIB_DIMENSIONS,
+                                                        prevision_data = prevision_data,
+                                                        quarters_to_predict = QUARTERS_TO_PREDICT)
+
+
+  nowcasting_summaries_reality_exercise <- reality_nowcasting_exercise %>%
+    dplyr::full_join(PE_expected_values, by = "date")
+  nowcasting_summaries_reality_exercise <- nowcasting_summaries_reality_exercise %>%
+    dplyr::group_by(dimension) %>%
+    dplyr::summarise(adjusted_r_squared = mean(adjusted_r_squared),
+                     # reg_rmse = mean(reg_rmse),
+                     # reg_mae = mean(reg_mae),
+                     rmse = Metrics::rmse(actual = expected_values_PE, predicted = predicted_values),     # ATTENTION! we use expected_values_PE
+                     mae = Metrics::mae(actual = expected_values_PE, predicted = predicted_values), .groups = "drop") %>%   # ATTENTION! we use expected_values_PE
+    dplyr::mutate(horizon = stringr::str_extract(dimension, "(lead)|(.{2}$)")) %>%
+    dplyr::filter(rmse <= 0.0018) %>%
+    dplyr::arrange(horizon, rmse) %>%
+    dplyr::select(horizon, everything())
+} else {
+  nowcasting_summaries_reality_exercise <- data.frame()
+}
 
 # 8. data for future leakage box  --------------------------------------------------------------------------------------
 
 # load revised data
-REDOWNLOAD_REVISED_IPI_DATA <- FALSE
-REDOWNLOAD_REVISED_PRODUCTION_DATA <- FALSE
+load("./data_doc_travail/revised_ipi_2019-12-01.RData")
+revised_ipi_2019 <- revised_ipi
+load("./data_doc_travail/revised_production_2019-10-01PE.RData")
+revised_production_2019 <- revised_production
 
-if (REDOWNLOAD_REVISED_IPI_DATA) {
-  revised_ipi <- generic_loader(file_path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Prod_manuf/02-IPI/mail_reaction_ipi/02-Envoi_Insee/2019/series_longues_ipi_201912.xls")
-  save(revised_ipi, file = paste0("./data/", "revised_ipi_", max(unique(revised_ipi[["date"]])), ".RData"))
-} else {
-  load("./data/revised_ipi_2019-12-01.RData")
-  revised_ipi_2019 <- revised_ipi
-}
 
-if (REDOWNLOAD_REVISED_PRODUCTION_DATA) {
-  revised_production <- xls_national_accounting_loader(file_path = file.path(NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014, "19T4PE"),
-                                                       folder_name = "14T4PE",
-                                                       file_name = "cprvolch",
-                                                       dimensions_list = PRODUCTION_DIMENSIONS,
-                                                       dimensions_list_name = "revised")
-  save(revised_production, file = paste0("./data/", "revised_production_", max(unique(revised_production[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
-} else {
-  load("./data/revised_production_2019-10-01PE.RData")
-  revised_production_2019 <- revised_production
-}
-
-# load mostrecent revised data
-load("./data/revised_production_2023-01-01PE.RData")
+# load recent revised data
+load("./data_doc_travail/revised_production_2023-01-01PE.RData")
 revised_production_2023 <- revised_production
-load("./data/revised_ipi_2023-03-01.RData")
+load("./data_doc_travail/revised_ipi_2023-03-01.RData")
 revised_ipi_2023 <- revised_ipi
 
 # load nonrevised data
-load("./data/nonrevised_production_2023-01-01PE.RData")
-load("./data/nonrevised_ipi_2023-03-01.RData")
+load("./data_doc_travail/nonrevised_production_2023-01-01PE.RData")
+load("./data_doc_travail/nonrevised_ipi_2023-03-01.RData")
 
 nonrevised_production_for_prev <- nonrevised_production %>%
   dplyr::select(date, dimension, t, t_1, t_4) %>%
@@ -462,5 +459,5 @@ writexl::write_xlsx(list("data_figure_prev_m1" = data_for_excel_figure_m1,
                          "data_tableau_stabilite_ssbdf_3" = table_model_stability_v2_h3,
                          "data_tableau_stabilite_ssbdf_4" = table_model_stability_v2_hlead,
                          "data_future_leakage_box" = production_ipi_data),
-                    path = "./code/doc_travail_interpretation_enquetes/output/prevision_output_for_graphs.xlsx",
+                    path = "./output/prevision_output_for_graphs.xlsx",
                     col_names = TRUE, format_headers = FALSE)
