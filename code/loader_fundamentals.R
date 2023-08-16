@@ -112,3 +112,10 @@ harmonise_date_strings_in_files_name <- function(vector_files_name) {
   }
   return(vector_files_name)
 }
+
+# helpers --------------------------------------------------------------------------------------------------------------
+
+mapper <- function(column_to_map, map) {
+  return(ifelse(column_to_map %in% names(map), as.character(map[column_to_map]), as.character(column_to_map)))
+}
+

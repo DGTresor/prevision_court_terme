@@ -14,11 +14,15 @@ library(ggplot2)
 library(writexl)
 library(lubridate)
 
+# TODO: improve graphs display in html output document
+
 source("../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("../doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("../data_preparator.R", encoding = "utf-8")
 source("../scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 
+# Note: always put TRUE, because updating the data requires to have access to the French Treasury internal files
+# Besides, loading existing data enables to reproduce exactly the results from the Document de Travail
 LOAD_EXISTING_DATA_FOR_HEURISTIQUE <- TRUE
 
 ```
@@ -946,6 +950,6 @@ writexl::write_xlsx(list("data_figure_1a" = data_for_excel_figure_1a,
                          "annexe_tableau_heuristiques_1" = data_for_excel_heuristiques_pib,
                          "annexe_tableau_heuristiques_2" = data_for_excel_heuristiques_va_services,
                          "annexe_tableau_heuristiques_3" = data_for_excel_heuristiques_va_indus),
-                    path = "./output/output_for_graphs.xlsx",
+                    path = "../../output/output_for_graphs.xlsx",
                     col_names = TRUE, format_headers = FALSE)
 ```

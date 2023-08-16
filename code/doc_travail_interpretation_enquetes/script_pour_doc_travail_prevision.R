@@ -30,9 +30,9 @@ library(ggplot2)
 # TODO - remove dependency to DGTresorGraphes
 
 source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("./code/data_importator.R", encoding = "utf-8")
 source("./code/doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_preparator.R", encoding = "utf-8")
-
 source("./code/scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 
 # constants to define --------------------------------------------------------------------------------------------------
@@ -366,6 +366,7 @@ load("./data_doc_travail/revised_ipi_2023-03-01.RData")
 revised_ipi_2023 <- revised_ipi
 
 # load nonrevised data
+## Note: constructed with "./code/nonrevised_ipi/loaders_utils.R"
 load("./data_doc_travail/nonrevised_production_2023-01-01PE.RData")
 load("./data_doc_travail/nonrevised_ipi_2023-03-01.RData")
 

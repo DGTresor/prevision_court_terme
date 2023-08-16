@@ -10,7 +10,8 @@ source("./loaders.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # folders --------------------------------------------------------------------------------------------------------------
-IPI_DATA_FOLDER <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Prod_manuf/02-IPI/mail_reaction_ipi/02-Envoi_Insee"
+DGTRESOR_S_SERVER_PATH <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3" # TODO: to remove for public release -> create a branch for public release
+IPI_DATA_FOLDER <- file.path(DGTRESOR_S_SERVER_PATH, "Prod_manuf/02-IPI/mail_reaction_ipi/02-Envoi_Insee")
 
 # functions ------------------------------------------------------------------------------------------------------------
 construct_nonrevised_ipi_from_scratch <- function(files_list, file_type2files_list, number_previous_values = 0, data_correction = "CJO-CVS") {

@@ -9,6 +9,7 @@ library(stringr)
 library(dplyr)
 library(tidyr)
 library(lubridate)
+
 source("../loader_fundamentals.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
