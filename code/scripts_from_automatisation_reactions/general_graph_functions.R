@@ -19,9 +19,6 @@ source("./data_transformation_helpers.R", encoding = "utf-8")
 
 # graph functions --------------------------------------------------------------------
 
-# TODO : to use
-# annotate("text", x = XTBG, y = YTBG, label = texte.bas.gauche.texte , col="black", size=texte.bas.gauche.taille, hjust = 0)
-
 graph_donnees_conj <- function(graph_name, data, graph_folder, graph_start_date = NULL, graph_end_date = NULL,
                                dimensions_to_plot = NULL, main_dimension = "", label_list = NULL, title = "", graph_source = "",
                                subtitle = NULL, color_list_name = "FR_derouleur", horizontal_line = NULL,
@@ -137,7 +134,7 @@ graph_donnees_conj <- function(graph_name, data, graph_folder, graph_start_date 
   } else {
     return(indices_plot)
   }
-  #TODO: check if returning a list with several objects (e.g. graph_start_date, graph_end_date, data_to_plot) could be efficient to create other functions on top adding more layers to the graph
+  #TODO: check if returning a list with several objects (e.g. graph_start_date, graph_end_date, data_to_plot) could be efficient to create other functions on top, to add more layers to the graph
 }
 
 #TODO: data transformation should be done outside of the graph function. Maybe that can be replaced by the main graph function OR keep another function, more complicated to have 2 axes

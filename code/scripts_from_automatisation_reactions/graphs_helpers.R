@@ -127,23 +127,10 @@ get_x_date_scale_elements <- function(date_breaks, date_labels, date_column) {
 get_date_limits <- function(date_breaks, min_date) {
   # Note: if we do expand the axis, for months appearing in the non_expansion_cases, substracting one month is necessary
   # to see the floor date appearing as the first month break on the plot if the time range is sufficiently large, otherwise
-  # we need to substract different amount of months according to the time range; we a rule complicated to reproduce.
+  # we need to substract different amount of months according to the time range, which is a rule complicated to reproduce.
   # Though, we decide to not expand the axis at all
   date_limits_elements <- list("date_limits" = c(NA, NA), "expand" = FALSE)    # Note, default case should be with expand = TRUE, but, see Note, we put FALSE
   starting_date <- lubridate::floor_date(min_date, date_breaks)
-
-  # min_date_month <- lubridate::month(min_date)
-  # non_expansion_cases <- list("1 year" = c(1),
-  #                             "6 months" = c(1, 7),
-  #                             "3 months" = c(1, 4, 7, 10),
-  #                             "2 months" = c(1, 3, 5, 7, 9, 11))
-  #
-  # if (date_breaks %in% names(non_expansion_cases) && !(min_date_month %in% non_expansion_cases[[date_breaks]])) {
-  #   date_limits_elements[["expand"]] <- FALSE
-  #   date_limits_elements[["date_limits"]] <- c(starting_date, NA)
-  # } else {
-  #   date_limits_elements[["date_limits"]] <- c(starting_date - months(1), NA)  # see function's note
-  # }
 
   date_limits_elements[["date_limits"]] <- c(starting_date, NA)
 
@@ -151,52 +138,11 @@ get_date_limits <- function(date_breaks, min_date) {
 }
 
 # format axes ----------------------------------------------------------------------------
-format_dates_on_two_lines <- function(x) {
-  months <- stringr::str_sub(x, start = 6, end = 7)             # get number of the month
-  years <- lubridate::year(x)                                   # get the year
-  if_else((is.na(lag(years)) & as.numeric(months) > 6) |
-            months == "06" |
-            is.na(lead(years)),  # Conditions for pasting.
-          true = paste(months, years, sep = "\n"),
-          false = months)
-}
 
-format_variations_with_point <- function(x) {
-  paste(x, "pt")
-}
-
-
-
-########################################################################################################################
-########################################################################################################################
-# from functions_generator.R in automatisation_reactions project
-
-get_last_available_value <- function(data, dimension, nbr_digits = 1, hide_zero = FALSE) {
-  last_date_with_available_data <- get_last_date_with_available_data(data, dimension)
-  formatted_value <- get_value_for_date(data, dimension, for_date = last_date_with_available_data, nbr_digits = nbr_digits, hide_zero = hide_zero)
-  return(formatted_value)
-}
-
-get_last_available_variation <- function(data, dimension, nbr_digits = 1, hide_zero = FALSE) {
-  last_date_with_available_data <- get_last_date_with_available_data(data, dimension)
-  formatted_value <- get_monthly_variation_for_date(data, dimension = dimension, for_date = last_date_with_available_data, nbr_digits = nbr_digits)
-  return(formatted_value)
-}
 
 get_last_date_with_available_data <- function(data, dimension) {
   dataframe_with_no_missing_values <- data %>%
     filter(dimension == dimension) %>%
     filter(!is.na(value))
   return(max(dataframe_with_no_missing_values$date))
-}
-
-get_monthly_variation_for_date <- function(data, dimension, for_date, comparison_date = NULL, nbr_digits = 1, hide_zero = FALSE, numeric = FALSE,
-                                           format_type = DEFAULT_FORMAT_TYPE, get_variation_of_rounded_nbr = DEFAULT_ROUNDING_PRINCIPLE) {
-  m_variation <- get_monthly_variation_for_date_numeric(data, dimension, for_date, comparison_date = comparison_date, nbr_digits = nbr_digits,
-                                                        format_type = format_type, get_variation_of_rounded_nbr = get_variation_of_rounded_nbr)
-  if (numeric) {
-    return(m_variation)
-  } else {
-    return(transform_to_string(m_variation, "variation", nbr_digits, hide_zero, format_type))
-  }
 }

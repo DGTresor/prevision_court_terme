@@ -1,7 +1,7 @@
 ---
 title: "Exploration des relations entre les enquêtes de conjoncture et le PIB français"
 author: lphung
-date: 13/04/2023
+date: 18/07/2023
 output: html_document
 knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_dir = "../../output/") })
@@ -44,9 +44,6 @@ LOAD_EXISTING_DATA_FOR_HEURISTIQUE <- TRUE
 # 4. Une relation complexe entre les climats et la croissance du PIB (partie document de travail)
 
 ## Remarques préliminaires
-
-<input type="checkbox" unchecked> Question : est-ce que la perte de pertinence des enquêtes de conjoncture s'observent aussi dans les autres pays européens ? (peut-être une première tâche pour le stagiaire) </input>
-
 
 ```{r loading_data, echo = FALSE}
 load("../../data_doc_travail/data_doc_travail_2023-07-18.RData")
