@@ -93,9 +93,9 @@ plot_graph_evol_correlation_pib <- function(correlation_data, pib_var_name, wind
 
   # préparer le titre du graphique et vérifier que l'argument pib_var_name est correct
   if (pib_var_name == "var1_PIB") {
-    plot_title <- "la variation trimestrielle du PIB"
+    plot_title <- "\nla variation trimestrielle du PIB"
   } else if (pib_var_name == "var4_PIB") {
-    plot_title <- "le glissement annuel du PIB"
+    plot_title <- "\nle glissement annuel du PIB"
   } else {
     stop("L'argument pib_var_name de la fonction plot_graph_evol_correlation_pib() peut être : \"var1_PIB\" ou \"var4_PIB\".")
   }

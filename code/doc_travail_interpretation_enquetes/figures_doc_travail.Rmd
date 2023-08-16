@@ -1,6 +1,6 @@
 ---
 title: "Exploration des relations entre les enquêtes de conjoncture et le PIB français"
-author: lphung
+author: Louise Phung (DG Trésor/SPMAE/Prev3)
 date: 18/07/2023
 output: html_document
 knit: (function(inputFile, encoding) {
@@ -40,6 +40,8 @@ LOAD_EXISTING_DATA_FOR_HEURISTIQUE <- TRUE
 
 ```
 
+Ce fichier RMarkdown reproduit les résultats de la partie 4 du Document de Travail.
+
 
 # 4. Une relation complexe entre les climats et la croissance du PIB (partie document de travail)
 
@@ -61,7 +63,10 @@ subset_data <- full_data %>%
 
 L'objectif ici est d'apporter un premier aperçu de la correspondance entre le PIB et les enquêtes.
 
-```{r figure_1, echo = FALSE}
+```{r figure_1, echo = FALSE, fig.dim = c(9, 7)}
+
+
+# out.width = "100%",
 
 # Data for graph
 ## en variation trimestrielle
@@ -80,47 +85,56 @@ data_graph_evol_PIB_climat_ga <- subset_data %>%
                       values_to = "value")
 
 # Figure 1a Variation trimestrielle du PIB et indicateurs synthétiques centrés-réduits
-compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_var_trim_insee_pmi",
-                                          graph_folder = "./output",
-                                          insee_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "lead_insee_global_m1"),
-                                          pmi_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "qt_pmi_composite"),
-                                          title = "Variation trimestrielle du PIB et indicateurs synthétiques centrés-réduits",
-                                          label_list = list("insee" = "Climat global de l'Insee au mois 1 du trimestre T+1",
-                                                            "pmi" = "PMI trimestriel moyen"),
-                                          reduced_centered = "manual",
-                                          graph_source = "Insee et S&P",
-                                          graph_saving = FALSE) +
-  geom_line(data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "var1_PIB"),
-            aes(x = date, y = value * 100, linetype = dimension), color = "black") +
-  scale_linetype_manual(values = "longdash",
-                        labels = "Variation trimestrielle du PIB") +
-  scale_y_continuous(sec.axis = sec_axis(~. / 100,
-                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
-  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
+suppressMessages(                                                    # suppressMessages() enables to remove the messages related to the modification of the scales.
+  compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_var_trim_insee_pmi",
+                                            graph_folder = "../../output",
+                                            insee_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "lead_insee_global_m1"),
+                                            pmi_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                            title = "Variation trimestrielle du PIB et \nindicateurs synthétiques centrés-réduits",  # Note: the \n symbol enables to return to the line
+                                            label_list = list("insee" = "Climat global de l'Insee au mois 1 du trimestre T+1",
+                                                              "pmi" = "PMI trimestriel moyen"),
+                                            reduced_centered = "manual",
+                                            graph_source = "Insee et S&P",
+                                            date_breaks = "2 years",
+                                            date_labels = "%Y",
+                                            graph_saving = FALSE) +
+    geom_line(data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "var1_PIB"),
+              aes(x = date, y = value * 100, linetype = dimension), color = "black") +
+    scale_linetype_manual(values = "longdash",
+                          labels = "Variation trimestrielle du PIB") +
+    scale_y_continuous(sec.axis = sec_axis(~. / 100,
+                                           labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
+    labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) \net pourcentage de variation (à droite pour le PIB)") +
+    guides(color = guide_legend(nrow = 2))  # put the legend on 2 rows
+)
 
 # Figure 1b Glissement annuel du PIB et indicateurs synthétiques centrés-réduits
-compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_ga_insee_pmi_bdf",
-                                          graph_folder = "./output",
-                                          insee_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_insee_global"),
-                                          bdf_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_bdf_global"),
-                                          pmi_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_pmi_composite"),
-                                          title = "Glissement annuel du PIB et indicateurs synthétiques trimestriels moyens centrés-réduits",
-                                          label_list = list("insee" = "Climat global Insee",
-                                                            "bdf" = "Climat global Banque de France",
-                                                            "pmi" = "PMI composite"),
-                                          reduced_centered = "manual",
-                                          graph_source = "Insee, Banque de France et S&P",
-                                          graph_saving = FALSE) +
-  geom_line(data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "var4_PIB"),
-            aes(x = date, y = value * 100 - 1, linetype = dimension), color = "black") +
-  scale_linetype_manual(values = "longdash",
-                        labels = "Glissement annuel du PIB") +
-  scale_y_continuous(breaks = c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4),
-                     sec.axis = sec_axis(~(. + 1) / 100,
-                                         breaks = (c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4) + 1) / 100,
-                                         labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
-  labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) et pourcentage de variation (à droite pour le PIB)")
-
+suppressMessages(                                                    # suppressMessages() enables to remove the messages related to the modification of the scales.
+  compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_ga_insee_pmi_bdf",
+                                            graph_folder = "../../output",
+                                            insee_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_insee_global"),
+                                            bdf_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_bdf_global"),
+                                            pmi_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_pmi_composite"),
+                                            title = "Glissement annuel du PIB et \nindicateurs synthétiques trimestriels moyens centrés-réduits",
+                                            label_list = list("insee" = "Climat global Insee",
+                                                              "bdf" = "Climat global Banque de France",
+                                                              "pmi" = "PMI composite"),
+                                            reduced_centered = "manual",
+                                            graph_source = "Insee, Banque de France et S&P",
+                                            date_breaks = "2 years",
+                                            date_labels = "%Y",
+                                            graph_saving = FALSE) +
+    geom_line(data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "var4_PIB"),
+              aes(x = date, y = value * 100 - 1, linetype = dimension), color = "black") +
+    scale_linetype_manual(values = "longdash",
+                          labels = "Glissement annuel du PIB") +
+    scale_y_continuous(breaks = c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4),
+                       sec.axis = sec_axis(~(. + 1) / 100,
+                                           breaks = (c(-5, -4, -3, -2, -1, 0, 1, 2, 3, 4) + 1) / 100,
+                                           labels = scales::percent_format(accuracy = 1L, decimal.mark = ","))) + # add a second axis
+    labs(subtitle = "Ecart à la moyenne en point d'écart-type (à gauche pour les indices) \net pourcentage de variation (à droite pour le PIB)") +
+    guides(color = guide_legend(nrow = 2))  # put the legend on 2 rows
+)
 # Prepare data for export
 data_for_excel_figure_1a <- data_graph_evol_PIB_climat_vt %>%
   dplyr::filter(dimension == "var1_PIB") %>%
@@ -151,8 +165,6 @@ data_for_excel_figure_1b <- data_for_excel_figure_1b %>%
 
 
 ```
-
-
 
 ### Choix des outliers à exclure
 
@@ -255,7 +267,7 @@ print(paste("PIB en glissement annuel : Outliers avec 2.576 fois l'écart-type r
 
 Visualisation graphique de la règle robuste d'exclusion des *outliers*.
 
-```{r figure_2, echo = FALSE}
+```{r figure_2, echo = FALSE, , fig.dim = c(9, 5)}
 
 # Value boundaries
 borne_sup_var1_PIB <- robust_outliers_info_var1_pib[["mean"]] + 2.576 * robust_outliers_info_var1_pib[["standard_deviation"]]
@@ -397,7 +409,7 @@ moyenne de mai et juin 1998 au lieu d'avril à juin 1998 ; les corrélations pou
 Pour les variations trimestrielles, on commence au T2 1998 (sauf pour les PMI : T3 1998) et pour les glissements annuels,
 on commence également au T2 1998 (sauf pour les PMI : T2 1999).
 
-```{r tableau_corr_fenetre_glissante_en_niveau, echo = FALSE}
+```{r tableau_corr_fenetre_glissante_en_niveau, echo = FALSE, fig.dim = c(9, 5)}
 
 WINDOW_CORRELATION <- 10 * 4 # Note : données trimestrielles => 10 ans
 
@@ -586,7 +598,7 @@ Grâce aux premières régressions réalisées sur fenêtres roulantes, les indi
 * Insee : lead_insee_global_m1, insee_global_m3 (pour avoir un mois 3, sinon il faut attendre plus longtemps pour avoir les informations),
 * PMI : pmi_composite_m3.
 
-```{r tableau_regression_with_rolling_window, echo = FALSE}
+```{r tableau_regression_with_rolling_window, echo = FALSE, fig.dim = c(9, 5)}
 
 REG_WINDOW_SIZE <- 10 * 4 # ATTENTION, en nombre de trimestres !!!
 
@@ -655,7 +667,7 @@ rolling_regressions_coef <- summary_of_rolling_regressions_seuil %>%
 ggplot(rolling_regressions_coef) +
   aes(x = date, y = coefficient * 100, color = dimension) +
   geom_line() +
-  labs(title = paste("Croissance associée à une hausse de 4 pts des climats Insee et BdF et de 2 pts du PMI
+  labs(title = paste("Croissance associée à une hausse de 4 pts des climats Insee et BdF \net de 2 pts du PMI
   (estimation roulante sur", REG_WINDOW_SIZE / 4, "ans)"))
 
 
@@ -694,7 +706,7 @@ data_for_excel_tableau_heuristique_m1_m2 <- tableau_summary_of_rolling_regressio
 
 Pour le travail à Prev3 spécifiquement afin d'améliorer l'interprétation des enquêtes de conjoncture dans nos réactions
 
-```{r calcul_heuristiques_tous_soldes_fenetre_roulante, echo = FALSE}
+```{r calcul_heuristiques_tous_soldes_fenetre_roulante, echo = FALSE, fig.dim = c(9, 5)}
 
 if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
   load("../../data_doc_travail/data_doc_travail_heuristiques_data_20230703.RData")
@@ -737,7 +749,7 @@ if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
     dplyr::bind_rows(heuristiques_survey_data) %>%
     convert_to_wide_format()
 
-  save(heuristiques_data, file = paste0("../../data_doc_travail/data_doc_travail_heuristiques_data_", lubridate::today(),".RData"))
+  save(heuristiques_data, file = paste0("../../data_doc_travail/data_doc_travail_heuristiques_data_", lubridate::today(), ".RData"))
 }
 
 subset_heuristiques_data <- heuristiques_data %>%
@@ -802,7 +814,7 @@ tableau_heuristiques_va_services
 heuristiques_va_indus <- create_summary_for_several_simple_regressions(y_var = "var1_B1_DIM",
                                                                        list_x_var = c("qt_bdf_industrie", "qt_insee_industrie", "qt_pmi_industrie"),
                                                                        reg_data = subset_heuristiques_data_seuil,
-                                                                       window_size = nrow (subset_heuristiques_data)) %>% # Note: on a des valeurs aberrantes si on utilise des fenêtres roulantes [sûrement des outliers à nettoyer pour l'industrie spécifiquement]
+                                                                       window_size = nrow(subset_heuristiques_data)) %>% # Note: on a des valeurs aberrantes si on utilise des fenêtres roulantes [sûrement des outliers à nettoyer pour l'industrie spécifiquement]
   dplyr::mutate(var_trim_va_indus_pour_indice_au_seuil = constant * 100,
                 valeur_indice_pour_var_trim_va_indus_nulle = case_when(
                   stringr::str_detect(dimension, "pmi") ~ 50,
@@ -837,7 +849,7 @@ rolling_regressions_coef <- heuristiques_pib %>%
 ggplot(rolling_regressions_coef) +
   aes(x = date, y = coefficient * 100, color = dimension) +
   geom_line() +
-  labs(title = paste("Croissance associée à une hausse de 4 pts des climats Insee et BdF et de 2 pts du PMI
+  labs(title = paste("Croissance associée à une hausse de 4 pts des climats Insee et BdF \net de 2 pts du PMI
   (estimation roulante sur", REG_WINDOW_SIZE / 4, "ans)"))
 
 
