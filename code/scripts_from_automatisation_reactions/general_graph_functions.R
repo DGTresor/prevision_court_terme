@@ -11,11 +11,11 @@ library(ggtext)
 library(grDevices)
 library(lubridate)
 library(devEMF)
-library(DGTresorGraphes)
 
-# Dependancy to:
+# Dependency to:
 source("./graphs_helpers.R", encoding = "utf-8")
 source("./data_transformation_helpers.R", encoding = "utf-8")
+source("./design_parameters.R", encoding = "utf-8")
 
 # graph functions --------------------------------------------------------------------
 

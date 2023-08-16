@@ -27,8 +27,6 @@ library(stats)
 library(forecast)
 library(ggplot2)
 
-# TODO - remove dependency to DGTresorGraphes
-
 source("./code/nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./code/data_importator.R", encoding = "utf-8")
 source("./code/regressions_and_previsions.R", encoding = "utf-8", chdir = TRUE)
