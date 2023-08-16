@@ -315,24 +315,9 @@ summarise_simple_out_of_sample_nowcasting <- function(y_var, x_var, reg_data, wi
 
 
 # special function # TODO: add more explanation
-
 create_reality_summary <- function(data_source, files_list, file_type2files_list, file_name, dimensions_list, prevision_data, quarters_to_predict) {
   for (i in 1:17) {
-    # folder_root <- ifelse(i <= 11, file.path(NATIONAL_ACCOUNTING_DATA_FOLDER, "base2010"), NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014) #ATTENTION: magic number linked to quarters_to_load (base 2010 up to 18T1PE)
-    # if (i <= 15) {
-    #   revised_pib <- csv_pre_19T2RD_national_accounting_loader(file_path = file.path(folder_root, quarters_to_load[i]),
-    #                                                            folder_name = quarters_to_load[i],
-    #                                                            file_name = "erevolch",
-    #                                                            dimensions_list = PIB_DIMENSIONS,
-    #                                                            dimensions_list_name = "pre_19T2RD_csv")
-    # } else {
-    #   revised_pib <- xls_national_accounting_loader(file_path = file.path(folder_root, quarters_to_load[i]),
-    #                                                 folder_name = quarters_to_load[i],
-    #                                                 file_name = "erevolch",
-    #                                                 dimensions_list = PIB_DIMENSIONS,
-    #                                                 dimensions_list_name = "$post_19T2RD_xls")
-    # }
-
+    
     loader_provider <- get_loader_provider(data_source = data_source)
     folder_name <- names(files_list)[i]
     print(paste("On s'occupe du dossier :", folder_name))
