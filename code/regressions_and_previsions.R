@@ -317,7 +317,7 @@ summarise_simple_out_of_sample_nowcasting <- function(y_var, x_var, reg_data, wi
 # special function # TODO: add more explanation
 create_reality_summary <- function(data_source, files_list, file_type2files_list, file_name, dimensions_list, prevision_data, quarters_to_predict) {
   for (i in 1:17) {
-    
+
     loader_provider <- get_loader_provider(data_source = data_source)
     folder_name <- names(files_list)[i]
     print(paste("On s'occupe du dossier :", folder_name))

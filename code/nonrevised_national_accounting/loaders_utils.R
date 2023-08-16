@@ -108,24 +108,6 @@ get_loader_for_national_accounting <- function(file_type) {
   }
 }
 
-# get_file_name_for <- function(loader_name, folder_path) {
-#   file_path <- paste0(folder_path, "/cprvolch") # That is the national accounts' file we want to use for production and value added data in volume with chained prices
-#   file_type <- stringr::str_extract(loader_name, "^[:alpha:]*(?=_)")
-#   if (file_type == "excel") {
-#     return(paste0(file_path, ".xls"))
-#   } else if (file_type == "csv") {
-#     return(paste0(file_path, ".csv"))
-#   } else if (file_type == "rdata") {
-#     return(paste0(file_path, ".RData"))
-#   } else {
-#     stop(paste("No file for file_type:", file_type))
-#   }
-# }
-#
-# update_nonrevised_production <- function() {
-#
-# }
-
 get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
   # get all the folders' names in the folder
   files_names <- list.files(path = folder_path, full.names = FALSE)

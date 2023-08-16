@@ -37,37 +37,8 @@ get_loader_for_ipi <- function(file_type) {
   } else if (file_type == "sectors_in_line_two_labels_loader") {
     return(sectors_in_line_two_labels_loader)
   } else if (file_type == "generic") {
-    return(generic_loader) #todo: check if good pattern; here the generic_loader is the default
+    return(generic_loader)
   } else {
     stop(paste0("No loader found for the file_type: ", file_type))
   }
 }
-
-
-update_nonrevised_ipi <- function() {
-
-}
-
-# # functions to prepare the files' list ---------------------------------------------------------------------------------
-# get_indices_data_files <- function(data_folder) {
-#   # get the list of data files
-#   data_files <- list.files(path = data_folder, pattern = ".*\\.xls", recursive = TRUE, full.names = TRUE)
-#   # give an harmonised name to each file according to the last date of the ipi data
-#   names(data_files) <- stringr::str_extract(data_files, pattern = "(?<=_)[0-9]{5,6}(?=\\.xls)")
-#   names(data_files) <- harmonise_date_strings_in_files_name(names(data_files))  # the harmonisation is essential to ensure that the files are read in the good chronological order
-#   # sort the list by the names
-#   data_files <- data_files[sort(names(data_files))]
-#
-#   return(data_files)
-# }
-#
-# harmonise_date_strings_in_files_name <- function(vector_files_name) {
-#   for (file_name in 1:length(vector_files_name)) {
-#     if (nchar(vector_files_name[file_name]) == 5) {
-#       vector_files_name[file_name] <- paste0(stringr::str_sub(vector_files_name[file_name], start = 1, end = 4),  # subset the year
-#                                              "0",                                                                 # place a "zero" so that January 2022 is written "202201" and not "20221"
-#                                              stringr::str_sub(vector_files_name[file_name], start = 5, end = 5))  # subset the month
-#     }
-#   }
-#   return(vector_files_name)
-# }
