@@ -7,6 +7,20 @@ knit: (function(inputFile, encoding) {
   rmarkdown::render(inputFile, encoding = encoding, output_dir = "../../output/") })
 ---
 
+```{r disclaimer, include = FALSE}
+
+# The results of the Document de Travail n°XXX of the French Treasury (Direction générale du Trésor) have been obtained with the following data:
+# For revised GDP data: the GDP series from the First Estimation of French National Accounting of the 1st quarter of 2023
+# For survey data: raw survey data have been extracted using the DataInsight software on July 18th, 2023
+# TODO: Data to reproduce the results of the Document de Travail can be provided upon request.
+
+# Note: GDP in French is "PIB". Hence, PIB variables relate to GDP.
+# Note: samples run from 2007 Q4 to 2019 Q4
+
+# TODO: improve graphs display in html output document
+
+```
+
 ```{r set-up, include = FALSE}
 library(dplyr)
 library(tidyr)
@@ -14,15 +28,14 @@ library(ggplot2)
 library(writexl)
 library(lubridate)
 
-# TODO: improve graphs display in html output document
-
 source("../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("../doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
 source("../data_preparator.R", encoding = "utf-8")
 source("../scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 
-# Note: always put TRUE, because updating the data requires to have access to the French Treasury internal files
-# Besides, loading existing data enables to reproduce exactly the results from the Document de Travail
+# For individuals outside of the French Treasury, you will not be able to update the data, because the procedure depends on the French Treasury's internal files.
+# So, always put LOAD_EXISTING_DATA_FOR_HEURISTIQUE to TRUE.
+# Note: loading existing data enables to reproduce exactly the results from the Document de Travail
 LOAD_EXISTING_DATA_FOR_HEURISTIQUE <- TRUE
 
 ```
