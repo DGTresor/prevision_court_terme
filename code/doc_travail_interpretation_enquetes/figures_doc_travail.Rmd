@@ -31,7 +31,7 @@ library(lubridate)
 source("../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("../regressions_and_previsions.R", encoding = "utf-8", chdir = TRUE)
 source("../data_preparator.R", encoding = "utf-8")
-source("../scripts_from_automatisation_reactions/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
+source("../graph_plotting/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 
 # For individuals outside of the French Treasury, you will not be able to update the data, because the procedure depends on the French Treasury's internal files.
 # So, always put LOAD_EXISTING_DATA_FOR_HEURISTIQUE to TRUE.
