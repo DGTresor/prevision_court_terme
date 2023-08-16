@@ -10,8 +10,9 @@ source("./loaders.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # folders --------------------------------------------------------------------------------------------------------------
-NATIONAL_ACCOUNTING_DATA_FOLDER <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim"
-NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014 <- "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2014" # this one is to be used for revised data because it contains the most recent files
+DGTRESOR_T_SERVER_PATH <- "T:/SPMAE_Public/Prev_Public" # TODO: to remove for public release -> create a branch for public release
+NATIONAL_ACCOUNTING_DATA_FOLDER <- file.path(DGTRESOR_T_SERVER_PATH, "CNAT/ArchivesCTrim")
+NATIONAL_ACCOUNTING_DATA_FOLDER_BASE2014 <- file.path(DGTRESOR_T_SERVER_PATH, "CNAT/ArchivesCTrim/base2014") # this one is to be used for revised data because it contains the most recent files
 
 # constants ------------------------------------------------------------------------------------------------------------
 ## constants for production
@@ -68,7 +69,6 @@ PIB_DIMENSIONS <- list("post_19T2RD" = c("pib" = "TD.PIB_7CH"),
 # We use data from base2005 onward; the exclusion of data previous to base2005 is dealt in the function: get_national_accounting_data_files()
 
 ## note for national accounting dimensions
-# todo: check if I use a list or a named vector
 # /!\ Note: pre_2010 classification applies to 2010 quarters and before; for 2010, and before, the classification is different. So, we decide not to use data before 2011.
 # Note: .xls, .cvs or .RData files are available only from base2000 on, i.e. starting from the 2007T4PE account.
 # Note: .xls files always have the same ID code for indicators, however they have been different for .csv files and since .csv files are easier to load, we need to account for the change in ID codes.
@@ -108,23 +108,23 @@ get_loader_for_national_accounting <- function(file_type) {
   }
 }
 
-get_file_name_for <- function(loader_name, folder_path) {
-  file_path <- paste0(folder_path, "/cprvolch") # That is the national accounts' file we want to use for production and value added data in volume with chained prices
-  file_type <- stringr::str_extract(loader_name, "^[:alpha:]*(?=_)")
-  if (file_type == "excel") {
-    return(paste0(file_path, ".xls"))
-  } else if (file_type == "csv") {
-    return(paste0(file_path, ".csv"))
-  } else if (file_type == "rdata") {
-    return(paste0(file_path, ".RData"))
-  } else {
-    stop(paste("No file for file_type:", file_type))
-  }
-}
-
-update_nonrevised_production <- function() {
-
-}
+# get_file_name_for <- function(loader_name, folder_path) {
+#   file_path <- paste0(folder_path, "/cprvolch") # That is the national accounts' file we want to use for production and value added data in volume with chained prices
+#   file_type <- stringr::str_extract(loader_name, "^[:alpha:]*(?=_)")
+#   if (file_type == "excel") {
+#     return(paste0(file_path, ".xls"))
+#   } else if (file_type == "csv") {
+#     return(paste0(file_path, ".csv"))
+#   } else if (file_type == "rdata") {
+#     return(paste0(file_path, ".RData"))
+#   } else {
+#     stop(paste("No file for file_type:", file_type))
+#   }
+# }
+#
+# update_nonrevised_production <- function() {
+#
+# }
 
 get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
   # get all the folders' names in the folder
@@ -141,39 +141,18 @@ get_the_most_recent_file <- function(folder_path, exclusion_list = NULL) {
   return(most_recent_file)
 }
 
-# most_recent_compta_nat_data_loader <- function(folder_path, file_name, dimensions_list_name, dimensions_list) {
-#   file_path <- get_compta_nat_most_recent_file(folder_path, file_name)
-#   suppressMessages(data <- readr::read_delim(file = file_path, delim = ";", col_names = TRUE)) # suppress messages to prevent message of columns' type
-#
-#   clean_data <- data_cleaner_for_csv(data, dimensions_list_name = dimensions_list_name, list_of_dimensions = dimensions_list)
-#   return(clean_data)
-# }
-#
-# get_compta_nat_most_recent_file <- function(folder_path, file_name) {
-#   # Note: le file_name doit contenir l'extension, e.g. cprvolch.csv
-#   national_account_base_year <- stringr::str_extract(string = folder_path, pattern = "(?<=/)base[:digit:]{4}")
-#   message(paste("Le chemin du dossier pointe actuellement vers", national_account_base_year, "; Pensez à le changer si la base change."))
-#   most_recent_folder <- get_the_most_recent_file(folder_path)
-#   file_path <- file.path(most_recent_folder, file_name)
-#   return(file_path)
-# }
-
 # functions to prepare the files' list ---------------------------------------------------------------------------------
 get_national_accounting_data_files <- function(national_accounting_data_folder, estimation_type, subset_regex = NULL, starting_period = "standard") {
   # define the regex pattern corresponding to the estimation_type
   estimation_pattern <- get_estimation_pattern_for_estimation_type(estimation_type)
 
-  # get the regex pattern according to the starting_period  # TODO: can be exported to another function
+  # get the regex pattern according to the starting_period
   regex_for_folder_names <- get_regex_pattern_according_to_starting_period(starting_period, estimation_pattern)
 
   # get the list of folders containing each quarterly account
   national_accounting_data_folders <- list.dirs(national_accounting_data_folder, recursive = TRUE, full.names = TRUE)
   national_accounting_data_folders <- stringr::str_subset(string = national_accounting_data_folders,
                                                           pattern = regex_for_folder_names)
-
-  #todo: to delete when other loaders created
-  # production_data_folders <- stringr::str_subset(string = production_data_folders,
-  #                                                pattern = ".*/((1.*)|(20.*)|(21.*)|(22T1PE)|(22T1RD))")
 
   # if needed, reduce the list of folders selected
   if (!is.null(subset_regex)) {

@@ -34,7 +34,7 @@ most_recent_compta_nat_data_loader <- function(folder_path, folder_name, file_na
 
 csv_pre_19T2RD_national_accounting_loader <- function(file_path, folder_name, file_name, dimensions_list, dimensions_list_name = NULL) {
   # ensure that the file_path is complete
-  ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.csv") or only the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
+  ## Note: we make the assumption that either the file path is complete or only the filename is missing
   if (!stringr::str_detect(file_path, ".csv$")) {
     file_path <- file.path(file_path, paste0(file_name, ".csv"))
   }
@@ -52,7 +52,7 @@ csv_pre_19T2RD_national_accounting_loader <- function(file_path, folder_name, fi
 
 xls_national_accounting_loader <- function(file_path, folder_name, file_name, dimensions_list, dimensions_list_name = NULL) {
   # ensure that the file_path is complete
-  ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.xls") or the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
+  ## Note: we make the assumption that either the file path is complete or the filename is missing
   if (!stringr::str_detect(file_path, ".xls$")) {
     file_path <- file.path(file_path, paste0(file_name, ".xls"))
   }
@@ -67,7 +67,6 @@ xls_national_accounting_loader <- function(file_path, folder_name, file_name, di
   return(clean_data)
 }
 
-# TODO: check code duplication with xls_production_loader()
 csv_post_19T2RD_national_accounting_loader <- function(file_path, folder_name, file_name, dimensions_list, dimensions_list_name = NULL) {
   # ensure that the file_path is complete
   ## Note: we make the assumption that either the file path is complete (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE/cprvolch.csv") or the filename is missing (e.g. "T:/SPMAE_Public/Prev_Public/CNAT/ArchivesCTrim/base2005/11T1PE")
@@ -109,11 +108,6 @@ return_dimensions_list_name_for <- function(folder_name) {
 
 transform_quarterly_string_dates_to_date <- function(date_column) {
   # the date values only contain the year and the quarter and sometimes additional characters so (1) we need to only extract the numbers and (2) add "01" for the day
-  # date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\1", date_column), # extract the year
-  #                                                     "-",
-  #                                                     as.numeric(sub(pattern = "([0-9]{4})(Q|T)([1-9])", "\\3", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
-  #                                                     "-01"))
-  # TODO : check if does not break the prevision code
   date_column_in_date_format <- lubridate::ymd(paste0(sub(pattern = "(A?)([0-9]{4})(Q|T)([1-9])", "\\2", date_column), # extract the year
                                                       "-",
                                                       as.numeric(sub(pattern = "(A?)([0-9]{4})(Q|T)([1-9])", "\\4", date_column)) * 3 - 2, # extract the quarter and get the corresponding month
@@ -129,7 +123,7 @@ data_cleaner_for_csv <- function(data, dimensions_list_name, list_of_dimensions)
   # rename the first column
   ## Note: in this format, the first column contains national accounts' indicator codes (notably, value added and production by sectors)
   clean_data <- data %>%
-    select(-contains("INTIT")) # TODO: check if break prevision code
+    select(-contains("INTIT"))
   colnames(clean_data)[1] <- "dimension"
   # keep only the dimensions we need
   clean_data <- clean_data %>%

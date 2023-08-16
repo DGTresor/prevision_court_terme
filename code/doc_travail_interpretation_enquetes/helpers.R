@@ -10,18 +10,11 @@ library(Metrics)
 
 # dependencies
 source("../nonrevised_national_accounting/loaders.R", encoding = "utf-8", chdir = TRUE)
-source("../old_scripts_from_prevision_production_manuf/loading_data.R", encoding = "utf-8", chdir = TRUE)
 # chdir = TRUE needed because we call this Rscript from the main.R and from a RMarkdown, which define working directory differently
 
 # constants ------------------------------------------------------------------------------------------------------------
-PATH_TO_PMI_DATA <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/6. Enquêtes PMI/4. Préparation mail réaction PMI/Données/Data PMI.xlsx"
-PATH_TO_FR_DEROULEUR <- list(path = "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Synthèse/FR_Dérouleur.xlsx",
-                             sheet = "Données enquêtes")
-# PATH_TO_DATA_FOR_NOWCASTING <- "./input/donnees_pour_nowcasting_en_temps_reel.xlsx"
-PATH_TO_DATA_FOR_NOWCASTING <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Stages/Antoine_Claisse/donnees/donnees_pour_nowcasting_en_temps_reel.xlsx"
-
-# TODO: use function to get the most recent file
-PATH_TO_EMPLOYMENT_DATA <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3/Stages/Antoine_Claisse/donnees/donnees_emplois/dares_donnees_nat_cvs_mens_06.2023.xlsx"
+DGTRESOR_S_SERVER_PATH <- "S:/SPMAE/PREV/Prev3/_Fichiers_Prev3" # TODO: to remove for public release -> create a branch for public release
+PATH_TO_DATA_FOR_NOWCASTING <- file.path(DGTRESOR_S_SERVER_PATH, "Synthèse/1_donnees/donnees_pour_nowcasting_en_temps_reel.xlsx")
 
 # PIB_DIMENSIONS <- list("default" = c("pib" = "TD.PIB_7CH"))
 PMI_DIMENSIONS_LIST <- list(
@@ -40,13 +33,6 @@ BDF_DIMENSIONS_LIST <- list(
   "industrie" = "industrie",
   "services" = "services",
   "construction" = "construction"
-)
-
-EMPLOYMENT_DIMENSIONS_LIST <- list(
-  # Note : on veut les données pour la France entière
-  "Catégorie A...10" = "chomage_categorie_a",
-  "Catégories B et C...15" = "chomage_categorie_b_c",
-  "Catégories A, B, C...16" = "chomage_categorie_a_b_c"
 )
 
 # TODO: put all the function below in data_importator.R // functions useful for the independent project of Document de travail
