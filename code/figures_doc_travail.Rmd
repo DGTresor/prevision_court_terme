@@ -28,10 +28,10 @@ library(ggplot2)
 library(writexl)
 library(lubridate)
 
-source("../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
-source("../regressions_and_previsions.R", encoding = "utf-8", chdir = TRUE)
-source("../data_preparator.R", encoding = "utf-8")
-source("../graph_plotting/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
+source("./nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
+source("./regressions_and_previsions.R", encoding = "utf-8", chdir = TRUE)
+source("./data_preparator.R", encoding = "utf-8")
+source("./graph_plotting/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 
 # For individuals outside of the French Treasury, you will not be able to update the data, because the procedure depends on the French Treasury's internal files.
 # So, always put LOAD_EXISTING_DATA_FOR_HEURISTIQUE to TRUE.
@@ -48,7 +48,7 @@ Ce fichier RMarkdown reproduit les résultats de la partie 4 du Document de Trav
 ## Remarques préliminaires
 
 ```{r loading_data, echo = FALSE}
-load("../../data_doc_travail/data_doc_travail_2023-07-18.RData")
+load("../data_doc_travail/data_doc_travail_2023-07-18.RData")
 
 subset_data <- full_data %>%
   dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10"))
@@ -87,7 +87,7 @@ data_graph_evol_PIB_climat_ga <- subset_data %>%
 # Figure 1a Variation trimestrielle du PIB et indicateurs synthétiques centrés-réduits
 suppressMessages(                                                    # suppressMessages() enables to remove the messages related to the modification of the scales.
   compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_var_trim_insee_pmi",
-                                            graph_folder = "../../output",
+                                            graph_folder = "../output",
                                             insee_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "lead_insee_global_m1"),
                                             pmi_data = data_graph_evol_PIB_climat_vt %>% dplyr::filter(dimension == "qt_pmi_composite"),
                                             title = "Variation trimestrielle du PIB et \nindicateurs synthétiques centrés-réduits",  # Note: the \n symbol enables to return to the line
@@ -111,7 +111,7 @@ suppressMessages(                                                    # suppressM
 # Figure 1b Glissement annuel du PIB et indicateurs synthétiques centrés-réduits
 suppressMessages(                                                    # suppressMessages() enables to remove the messages related to the modification of the scales.
   compare_insee_pmi_bdf_for_one_index_graph(graph_name = "pib_ga_insee_pmi_bdf",
-                                            graph_folder = "../../output",
+                                            graph_folder = "../output",
                                             insee_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_insee_global"),
                                             bdf_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_bdf_global"),
                                             pmi_data = data_graph_evol_PIB_climat_ga %>% dplyr::filter(dimension == "qt_pmi_composite"),
@@ -709,10 +709,10 @@ Pour le travail à Prev3 spécifiquement afin d'améliorer l'interprétation des
 ```{r calcul_heuristiques_tous_soldes_fenetre_roulante, echo = FALSE, fig.dim = c(9, 5)}
 
 if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
-  load("../../data_doc_travail/data_doc_travail_heuristiques_data_20230703.RData")
+  load("../data_doc_travail/data_doc_travail_heuristiques_data_20230703.RData")
 } else {
-  load("../../data_doc_travail/revised_pib_2023-01-01PE.RData")
-  heuristiques_survey_data <- load_data_for_nowcasting("../../input/donnees_pour_nowcasting_en_temps_reel_backup.xlsx")
+  load("../data_doc_travail/revised_pib_2023-01-01PE.RData")
+  heuristiques_survey_data <- load_data_for_nowcasting("../input/donnees_pour_nowcasting_en_temps_reel_backup.xlsx")
 
   # prepare data  -----------
   pib_data <- revised_pib %>%
@@ -749,7 +749,7 @@ if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
     dplyr::bind_rows(heuristiques_survey_data) %>%
     convert_to_wide_format()
 
-  save(heuristiques_data, file = paste0("../../data_doc_travail/data_doc_travail_heuristiques_data_", lubridate::today(), ".RData"))
+  save(heuristiques_data, file = paste0("../data_doc_travail/data_doc_travail_heuristiques_data_", lubridate::today(), ".RData"))
 }
 
 subset_heuristiques_data <- heuristiques_data %>%
@@ -972,6 +972,6 @@ writexl::write_xlsx(list("data_figure_1a" = data_for_excel_figure_1a,
                          "annexe_tableau_heuristiques_1" = data_for_excel_heuristiques_pib,
                          "annexe_tableau_heuristiques_2" = data_for_excel_heuristiques_va_services,
                          "annexe_tableau_heuristiques_3" = data_for_excel_heuristiques_va_indus),
-                    path = "../../output/output_for_graphs.xlsx",
+                    path = "../output/output_for_graphs.xlsx",
                     col_names = TRUE, format_headers = FALSE)
 ```
