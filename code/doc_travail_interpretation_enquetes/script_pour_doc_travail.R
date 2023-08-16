@@ -29,7 +29,7 @@ source("./code/scripts_from_automatisation_reactions/general_graph_functions.R",
 
 
 # constants ------------------------------------------------------------------------------------------------------------
-UPDATE_REVISED_PIB_DATA <- FALSE   # if FALSE, update data
+UPDATE_REVISED_PIB_DATA <- FALSE
 UPDATE_SURVEY_DATA <- FALSE
 
 # load data ------------------------------------------------------------------------------------------------------------
@@ -43,13 +43,13 @@ if (UPDATE_REVISED_PIB_DATA) {
 
   save(revised_pib, file = paste0("./data/", "revised_pib_", max(unique(revised_pib[["date"]])), "PE.RData")) # ATTENTION: choose PE or RD
 } else {
-  load("./data/revised_pib_2023-01-01PE.RData")
+  load("./data_doc_travail/revised_pib_2023-01-01PE.RData")
 }
 if (UPDATE_SURVEY_DATA) {
   survey_data <- load_data_for_nowcasting_for_sheet(PATH_TO_DATA_FOR_NOWCASTING, sheet = "indices_synthetiques")
-  save(survey_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_", lubridate::today(), ".RData"))
+  save(survey_data, file = paste0("./data/survey_data_doc_travail_", lubridate::today(), ".RData"))
 } else {
-  load("./code/doc_travail_interpretation_enquetes/data/survey_data_doc_travail_2023-07-18.RData")
+  load("./data_doc_travail/survey_data_doc_travail_2023-07-18.RData")
 }
 
 # prepare data ---------------------------------------------------------------------------------------------------------
@@ -105,9 +105,9 @@ full_data <- full_data %>%
   dplyr::select(-pmi_composite_m_1, -pmi_composite_m_2, -bdf_global_m_1, -bdf_global_m_2)
 
 # impute value for pmi_composite_m1 for T2 1998 for which data is missing (PMI series starts in May 1998)
-full_data$pmi_composite_m1[full_data$date == lubridate::ymd("1998-04-01")] = (full_data$pmi_composite_m2[full_data$date == lubridate::ymd("1998-04-01")] + full_data$pmi_composite_m3[full_data$date == lubridate::ymd("1998-04-01")]) / 2
+full_data$pmi_composite_m1[full_data$date == lubridate::ymd("1998-04-01")] <- (full_data$pmi_composite_m2[full_data$date == lubridate::ymd("1998-04-01")] + full_data$pmi_composite_m3[full_data$date == lubridate::ymd("1998-04-01")]) / 2
 
-save(full_data, file = paste0("./code/doc_travail_interpretation_enquetes/data/data_doc_travail_", lubridate::today(), ".RData"))
+save(full_data, file = paste0("./data/data_doc_travail_", lubridate::today(), ".RData"))
 
 
 # TODO: CHECK that everything below works, clean code for publication

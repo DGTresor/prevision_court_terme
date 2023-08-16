@@ -3,6 +3,8 @@ title: "Exploration des relations entre les enquêtes de conjoncture et le PIB f
 author: lphung
 date: 13/04/2023
 output: html_document
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../../output/") })
 ---
 
 ```{r set-up, include = FALSE}
@@ -10,6 +12,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(writexl)
+library(lubridate)
 
 source("../nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("../doc_travail_interpretation_enquetes/helpers.R", encoding = "utf-8", chdir = TRUE)
@@ -29,7 +32,7 @@ LOAD_EXISTING_DATA_FOR_HEURISTIQUE <- TRUE
 
 
 ```{r loading_data, echo = FALSE}
-load("../doc_travail_interpretation_enquetes/data/data_doc_travail_2023-07-18.RData")
+load("../../data_doc_travail/data_doc_travail_2023-07-18.RData")
 
 subset_data <- full_data %>%
   dplyr::filter(date >= lubridate::ymd("1998-04-01") & date <= lubridate::ymd("2019-10-10"))
@@ -680,10 +683,10 @@ Pour le travail à Prev3 spécifiquement afin d'améliorer l'interprétation des
 ```{r calcul_heuristiques_tous_soldes_fenetre_roulante, echo = FALSE}
 
 if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
-  load("./data/data_doc_travail_heuristiques_data_20230703.RData")
+  load("../../data_doc_travail/data_doc_travail_heuristiques_data_20230703.RData")
 } else {
-  load("../../data/revised_pib_2023-01-01PE.RData")
-  heuristiques_survey_data <- load_data_for_nowcasting("../../input/donnees_pour_nowcasting_en_temps_reel.xlsx")
+  load("../../data_doc_travail/revised_pib_2023-01-01PE.RData")
+  heuristiques_survey_data <- load_data_for_nowcasting("../../input/donnees_pour_nowcasting_en_temps_reel_backup.xlsx")
 
   # prepare data  -----------
   pib_data <- revised_pib %>%
@@ -720,7 +723,7 @@ if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
     dplyr::bind_rows(heuristiques_survey_data) %>%
     convert_to_wide_format()
 
-  save(heuristiques_data, file = "./data/data_doc_travail_heuristiques_data_2023XXXX.RData")
+  save(heuristiques_data, file = paste0("../../data_doc_travail/data_doc_travail_heuristiques_data_", lubridate::today(),".RData"))
 }
 
 subset_heuristiques_data <- heuristiques_data %>%
