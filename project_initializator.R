@@ -4,7 +4,7 @@
 # Created on: 17/08/2023
 
 # this project has been developed with R.4.0.2.
-message("Ce projet a été développé avec la version R 4.0.2.")
+message("Ce projet a été développé avec la version R 4.0.2. La version R 4.1.3 fonctionne également.")
 
 # create the project architecture
 dir.create("./output")

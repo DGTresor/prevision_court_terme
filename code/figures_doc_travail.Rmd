@@ -4,7 +4,7 @@ author: Louise Phung (DG Trésor/SPMAE/Prev3)
 date: 18/07/2023
 output: html_document
 knit: (function(inputFile, encoding) {
-  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../../output/") })
+  rmarkdown::render(inputFile, encoding = encoding, output_dir = "../output/") })
 ---
 
 ```{r disclaimer, include = FALSE}
