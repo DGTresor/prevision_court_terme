@@ -2,15 +2,8 @@
 .Rhistory
 .Rproj.user/
 .idea/
-previsions_exploration.Rproj
-references_retraitement_IPI/
-input/
 output/
 data/
-tours_prevision/
-code/doc_travail_interpretation_enquetes/data/
-code/doc_travail_interpretation_enquetes/output/
-code/doc_travail_interpretation_enquetes/doc/
 *.docx
 *.xlsx
 *.html
