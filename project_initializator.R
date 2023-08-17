@@ -8,7 +8,7 @@ message("Ce projet a été développé avec la version R 4.0.2.")
 
 # create the project architecture
 dir.create("./output")
-dir.create("./data") # Note: this folder will not be usefull for individuals external to the French Treasury
+dir.create("./data") # Note: this folder will not be useful for individuals external to the French Treasury
 
 
 # package management
