@@ -31,6 +31,7 @@ library(lubridate)
 source("./nonrevised_national_accounting/loaders_utils.R", encoding = "utf-8", chdir = TRUE)
 source("./regressions_and_previsions.R", encoding = "utf-8", chdir = TRUE)
 source("./data_preparator.R", encoding = "utf-8")
+source("./data_importator.R", encoding = "utf-8")
 source("./graph_plotting/general_graph_functions.R", encoding = "utf-8", chdir = TRUE)
 
 # For individuals outside of the French Treasury, you will not be able to update the data, because the procedure depends on the French Treasury's internal files.
@@ -712,7 +713,7 @@ if (LOAD_EXISTING_DATA_FOR_HEURISTIQUE) {
   load("../data_doc_travail/data_doc_travail_heuristiques_data_20230703.RData")
 } else {
   load("../data_doc_travail/revised_pib_2023-01-01PE.RData")
-  heuristiques_survey_data <- load_data_for_nowcasting("../input/donnees_pour_nowcasting_en_temps_reel_backup.xlsx")
+  heuristiques_survey_data <- load_data_for_nowcasting(file.path(DGTRESOR_S_SERVER_PATH, "Synthèse/3_etudes_et_travaux/2023_Document de travail enquêtes de conjoncture et nowcasting en temps réel/donnees/donnees_pour_nowcasting_en_temps_reel_backup.xlsx"))
 
   # prepare data  -----------
   pib_data <- revised_pib %>%
