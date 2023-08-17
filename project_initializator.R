@@ -8,8 +8,7 @@ message("Ce projet a été développé avec la version R 4.0.2.")
 
 # create the project architecture
 dir.create("./output")
-# Note: this folder will not be usefull for individuals external to the French Treasury
-dir.create("./data")
+dir.create("./data") # Note: this folder will not be usefull for individuals external to the French Treasury
 
 
 # package management
@@ -18,6 +17,9 @@ dir.create("./data")
 if (!("renv" %in% rownames(installed.packages()))) {
   install.packages("renv")
 }
+
+## ensure that the .Rprofile is read
+source(".Rprofile")
 
 ## download the appropriate versions of packages to ensure the proper functioning of the code
 renv::restore()
