@@ -37,7 +37,7 @@ dgtresor_color_list <- list("FR_derouleur" = c(grDevices::rgb(red = 0, green = 0
 
 dgtresor_theme <- function() {
   # define the default design for the geom elements
-  ggplot2::update_geom_defaults("line", list(size = 1.1))
+  ggplot2::update_geom_defaults("line", list(linewidth = 1.1))
   ggplot2::update_geom_defaults("point", list(size = 2, shape = 15))
 
   # define the theme
