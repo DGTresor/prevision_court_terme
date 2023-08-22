@@ -14,7 +14,7 @@
 # TODO: Data to reproduce the results of the Document de Travail can be provided upon request.
 
 # Note: GDP in French is "PIB". Hence, PIB variables relate to GDP.
-# Note: samples run from 2007 Q4 to 2019 Q4
+# Note: samples run from 1998 Q2 to 2019 Q4
 
 # clean environment ----------------------------------------------------------------------------------------------------
 rm(list = ls())
