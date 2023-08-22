@@ -6,7 +6,7 @@ Créé le : 20/09/2022
 ## Présentation du projet
 
 Ce projet permet de reproduire les résultats du Document de Travail n°***XXX*** **"Guide pratique des enquêtes de conjoncture et 
-protocole de prévision en temps réel"** de la Direction générale du Trésor publié de ***XXXX***.
+protocole de prévision en temps réel"** de la Direction générale du Trésor publié le ***XXXX***.
 
 **Ce projet s'intéresse à la relation entre le taux de croissance trimestriel du PIB français et les enquêtes de conjoncture,
 ainsi qu'à la pertinence de ces dernières pour prédire la première estimation du taux de croissance trimestriel du PIB publiée 
@@ -27,7 +27,7 @@ Document de Travail.
 
 ### Le Document de Travail
 
-Ce document de travail présente une introduction globale aux enquêtes de conjoncture et à la prévision à court terme,
+Ce document de travail présente une introduction globale aux enquêtes de conjoncture et à la prévision de court terme,
 avec comme exemple la croissance du PIB trimestriel. 
 
 **Pensé comme un manuel méthodologique, il a vocation à** : 
@@ -71,6 +71,7 @@ Compte-tenu de la simplicité des modèles, leurs performances sont satisfaisant
 
 **Ce projet peut-être vu comme un tutoriel permettant de se familiariser avec** :
 1) **L'analyse de données** et de leur pertinence pour éclairer les évolutions de l'activité économique ;
+   
 2) **La mise en place d'un protocole de prévision** simple, opérationnel et correct d'un point de vu statistique.
 
 #### Protocole de prévision opérationnel
@@ -128,9 +129,9 @@ Pour les agents publics, ***sous couvert d'avoir préalablement demandé les don
 vous pouvez reproduire les résultats du Document de Travail, et réaliser des tests, avec l'utilisation d'une machine virtuelle
 disponible sur [Onyxia - SSP Cloud](https://onyxia.lab.sspcloud.fr/home).
 
-Vous devez créé un compte, si vous n'en avez pas déjà un, puis ouvrir un service RStudio. 
+Vous devez créer un compte, si vous n'en avez pas déjà un, puis ouvrir un service RStudio. 
 Dans le menu `Configuration RStudio`, allez à l'onglet `Service`  et choisissez comme `Version` de R `inseefrlab/onyxia-rstudio:r4.2.3`.
-Si elle n'est pas disponible, la précisez en cliquant sur `Custom image`. Lancez ensuite le service.
+Si elle n'est pas disponible, précisez-la en cliquant sur `Custom image`. Lancez ensuite le service.
 
 Suivez ensuite la procédure détaillée dans la partie `Première utilisation du projet` ci-dessous.
 
@@ -164,13 +165,13 @@ ne sont pas en volume chaîné au prix de l'année précédente, mais à prix co
 du 4e trimestre 2007 au 4e trimestre 2019. Les modèles sont entraînés sur la période du 4e trimestre 2007 au 3e trimestre 2015 inclus,
 puis ils sont évalués sur la période du 4e trimestre 2015 au 4e trimestre 2019 inclus.
 
-**La mise à jour des données pour ce projet est semi-automatique puisqu'elle dépend des processus internes de la sous-direction** :
-- **Les données d'enquête** proviennent d'un fichier Excel (`donnees_pour_nowcasting_en_temps_reel.xlsx`) qui est mis à jour par une macro (service du logiciel Data Insight 5.0).
+**La mise à jour des données pour ce projet est semi-automatique puisqu'elle dépend des processus internes à la sous-direction** :
+- **Les données d'enquête** proviennent d'un fichier Excel (`donnees_pour_nowcasting_en_temps_reel.xlsx`) qui est mis à jour par une macro VBA (service du logiciel Data Insight 5.0).
   Ce fichier est directement lu par le code de ce programme ;
 - **les données du PIB**, et de la comptabilité nationale trimestrielle en général, nous sont envoyées par l'Insee via 
       des fichiers Excel ou cvs, que nous sauvegardons dans différents dossiers. Le programme présenté dans ce projet va 
   ensuite automatiquement lire ces fichiers (sans avoir par exemple à renseigner quelles sont les dernières données disponibles,
-  puisque l'intégralité des dossiers sont scannés).
+  puisque l'intégralité des dossiers est scannée).
   
 ***A TRAITER: mise à disposition des données brutes au format .RData.***
 
