@@ -1,7 +1,8 @@
 # Analyse de la relation entre les enquêtes de conjoncture et le PIB & protocole de prévision en temps réel
 
 Créé par : Louise Phung (DG Trésor/SPMAE/Prev/Prev3)        
-Créé le : 20/09/2022        
+Créé le : 20/09/2022    
+Licence : GNU GPL
 
 ## Présentation du projet
 
