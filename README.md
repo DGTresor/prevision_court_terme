@@ -5,8 +5,8 @@ Créé le : 20/09/2022
 
 ## Présentation du projet
 
-Ce projet permet de reproduire les résultats du Document de Travail n°***XXX*** **"Guide pratique des enquêtes de conjoncture et 
-protocole de prévision en temps réel"** de la Direction générale du Trésor publié le ***XXXX***.
+Ce projet permet de reproduire les résultats du Document de Travail n°2023/2 **"Guide pratique des enquêtes de conjoncture et 
+protocole de prévision en temps réel"** de la Direction générale du Trésor publié en septembre 2023.
 
 **Ce projet s'intéresse à la relation entre le taux de croissance trimestriel du PIB français et les enquêtes de conjoncture,
 ainsi qu'à la pertinence de ces dernières pour prédire la première estimation du taux de croissance trimestriel du PIB publiée 
