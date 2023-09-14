@@ -675,9 +675,8 @@ ggplot(data = proba_vt_pib_lead_insee_global) +
 ### a. variation trimestrielle
 # PMI - full sample
 ggplot(data = full_sample_graphs) +
-  aes(x = qt_pmi_composite, y = var1_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_pmi_composite, y = var1_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et PMI composite",
        subtitle = "Période : T2 1999 - T4 2019",
@@ -692,9 +691,8 @@ ggplot(data = full_sample_graphs) +
 
 # PMI - sample without outliers
 ggplot(data = sample_without_outliers_graphs_vt) +
-  aes(x = qt_pmi_composite, y = var1_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_pmi_composite, y = var1_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et PMI composite",
        subtitle = "Période : T1 2001 - T4 2019 (avec exclusion de la crise 2008-9)",
@@ -710,9 +708,8 @@ ggplot(data = sample_without_outliers_graphs_vt) +
 
 # Insee lead M1 - full sample
 ggplot(data = full_sample_graphs) +
-  aes(x = lead_insee_global_m1, y = var1_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = lead_insee_global_m1, y = var1_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et climat Insee",
        subtitle = "Période : T2 1999 - T4 2019",
@@ -727,9 +724,8 @@ ggplot(data = full_sample_graphs) +
 
 # Insee lead M1 - sample without outliers
 ggplot(data = sample_without_outliers_graphs_vt) +
-  aes(x = lead_insee_global_m1, y = var1_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = lead_insee_global_m1, y = var1_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et climat Insee",
        subtitle = "Période : T1 2001 - T4 2019 (avec exclusion de la crise 2008-9)",
@@ -744,9 +740,8 @@ ggplot(data = sample_without_outliers_graphs_vt) +
 
 # Climat trim BdF - full sample
 ggplot(data = full_sample_graphs) +
-  aes(x = qt_bdf_global, y = var1_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_bdf_global, y = var1_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et climat Banque de France",
        subtitle = "Période : T2 1999 - T4 2019",
@@ -761,9 +756,8 @@ ggplot(data = full_sample_graphs) +
 
 # Climat trim BdF - sample without outliers
 ggplot(data = sample_without_outliers_graphs_vt) +
-  aes(x = qt_bdf_global, y = var1_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_bdf_global, y = var1_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et climat Banque de France",
        subtitle = "Période : T1 2001 - T4 2019 (avec exclusion de la crise 2008-9)",
@@ -780,9 +774,8 @@ ggplot(data = sample_without_outliers_graphs_vt) +
 ### a. glissement annuel
 # PMI - full sample
 ggplot(data = full_sample_graphs) +
-  aes(x = qt_pmi_composite, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_pmi_composite, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et PMI composite",
        subtitle = "Période : T2 1999 - T4 2019",
@@ -797,9 +790,8 @@ ggplot(data = full_sample_graphs) +
 
 # PMI - sample without outliers
 ggplot(data = sample_without_outliers_graphs_ga) +
-  aes(x = qt_pmi_composite, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_pmi_composite, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et PMI composite",
        subtitle = "Période : T1 2001 - T4 2019 (avec exclusion de la crise 2008-9)",
@@ -814,9 +806,8 @@ ggplot(data = sample_without_outliers_graphs_ga) +
 
 # Insee lead M1 - full sample
 ggplot(data = full_sample_graphs) +
-  aes(x = lead_insee_global_m1, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = lead_insee_global_m1, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
        subtitle = "Période : T2 1999 - T4 2019",
@@ -831,9 +822,8 @@ ggplot(data = full_sample_graphs) +
 
 # Insee lead M1 - sample without outliers
 ggplot(data = sample_without_outliers_graphs_ga) +
-  aes(x = lead_insee_global_m1, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = lead_insee_global_m1, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
        subtitle = "Période : T2 1999 - T4 2019 (avec exclusion de la crise 2008-9)",
@@ -848,9 +838,8 @@ ggplot(data = sample_without_outliers_graphs_ga) +
 
 # Insee trim - full sample
 ggplot(data = full_sample_graphs) +
-  aes(x = qt_insee_global, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_insee_global, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
        subtitle = "Période : T2 1999 - T4 2019",
@@ -865,9 +854,8 @@ ggplot(data = full_sample_graphs) +
 
 # Insee trim - sample without outliers
 ggplot(data = sample_without_outliers_graphs_ga) +
-  aes(x = qt_insee_global, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_insee_global, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
        subtitle = "Période : T2 1999 - T4 2019 (avec exclusion de la crise 2008-9)",
@@ -882,9 +870,8 @@ ggplot(data = sample_without_outliers_graphs_ga) +
 
 # Climat trim BdF - full sample
 ggplot(data = full_sample_graphs) +
-  aes(x = qt_bdf_global, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_bdf_global, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Banque de France",
        subtitle = "Période : T2 1999 - T4 2019",
@@ -899,9 +886,8 @@ ggplot(data = full_sample_graphs) +
 
 # Climat trim BdF - sample without outliers
 ggplot(data = sample_without_outliers_graphs_ga) +
-  aes(x = qt_bdf_global, y = var4_PIB, color = date, label = date) +
-  geom_point() +
-  geom_label() +
+  aes(x = qt_bdf_global, y = var4_PIB) +
+  geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Banque de France",
        subtitle = "Période : T1 2001 - T4 2019 (avec exclusion de la crise 2008-9)",

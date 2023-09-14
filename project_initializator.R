@@ -3,8 +3,8 @@
 # Created by: lphung
 # Created on: 17/08/2023
 
-# this project has been developed with R.4.0.2.
-message("Ce projet a été développé avec la version R 4.0.2. La version R 4.1.3 fonctionne également.")
+# this project has been developed with R.4.2.2
+message("Ce projet fonctionne avec la version R 4.2.2.; il est également compatible avec la version R.4.2.3.")
 
 # create the project architecture
 dir.create("./output")
@@ -13,11 +13,6 @@ dir.create("./data") # Note: this folder will not be useful for individuals exte
 
 # package management
 ## package manager: https://cran.r-project.org/web/packages/renv/vignettes/renv.html; https://rstudio.github.io/renv/articles/renv.html
-## load package manager, if needed
-if (!("renv" %in% rownames(installed.packages()))) {
-  install.packages("renv")
-}
-
 ## ensure that the .Rprofile is read
 source(".Rprofile")
 
