@@ -4,14 +4,15 @@
 # Created on: 08/05/2023
 
 # disclaimer -----------------------------------------------------------------------------------------------------------
-# The results of the Document de Travail n°XXX of the French Treasury (Direction générale du Trésor) have been obtained with the following data:
+# The results of the Document de Travail n°2023/2 of the French Treasury (Direction générale du Trésor) have been obtained with the following data:
 # For revised GDP data: the GDP series from the First Estimation of French National Accounting of the 1st quarter of 2023
 # For survey data: raw survey data have been extracted using the DataInsight software on July 18th, 2023
 
 # For individuals outside of the French Treasury, you will not be able to update the data, because the procedure depends on the French Treasury's internal files.
 # So, always set UPDATE_REVISED_PIB_DATA, UPDATE_NONREVISED_PIB_DATA and UPDATE_SURVEY_DATA to FALSE. Also, set IN_FRENCH_TREASURY to FALSE.
 # Note, that the code to update revised and non-revised data is nevertheless available to ensure transparency and enable review.
-# TODO: Data to reproduce the results of the Document de Travail can be provided upon request.
+# Data to reproduce the results of the Document de Travail can be provided upon request at Prev32@dgtresor.gouv.fr. However, PMI data,
+# under the property of S&P Global, should be requested at economics@spglobal.com.
 
 # Note: GDP in French is "PIB". Hence, PIB variables relate to GDP.
 # Note: samples run from 2007 Q4 to 2019 Q4

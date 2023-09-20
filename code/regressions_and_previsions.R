@@ -1,5 +1,4 @@
-# Title     : TODO
-# Objective : TODO
+# Title     : Functions needed to perform regressions and previsions
 # Created by: lphung
 # Created on: 18/01/2023
 

@@ -92,7 +92,7 @@ On notera toutefois que **l'enjeu ici est bien de détailler le protocole de pr�
 derrière un programme opérationnel à travers un exemple simple, c'est pourquoi les simulations s'arrêtent en 2019**. 
 
 ***Les conséquences de la crise du Covid-19 et les modèles réellement utilisés au sein de la Direction générale du Trésor 
-seront traités et présentés dans une autre publication et dans un autre projet informatique.***
+ne sont pas traités ici et pourront faire l'objet d'une nouvelle publication.***
 
 
 #### Objectif de reproductibilité des résultats
@@ -101,8 +101,8 @@ seront traités et présentés dans une autre publication et dans un autre proje
  
 Les données brutes sous forme de `.RData` sont lues par les scripts R [`script_pour_doc_travail.R`](./code/script_pour_doc_travail.R) 
 et [`script_pour_doc_travail_prevision.R`](./code/script_pour_doc_travail_prevision.R).
-***Si vous souhaitez répliquer les résultats et réaliser des tests, les données brutes peuvent être mises à disposition
-(voir la partie `Données utilisées`)***.        
+Si vous souhaitez répliquer les résultats et réaliser des tests, les données brutes peuvent être mises à disposition
+(voir la partie `Données utilisées`).        
   
 Les transformations opérées sur les données brutes sont également explicitées dans ces deux scripts en toute transparence. 
 
@@ -112,7 +112,7 @@ Même si la mise à jour des données ne sera pas possible pour toute personne e
   des données depuis les fichiers sources est explicité dans les scripts R
   [`script_pour_doc_travail.R`](./code/script_pour_doc_travail.R) et [`script_pour_doc_travail_prevision.R`](./code/script_pour_doc_travail_prevision.R). 
   Ce code détaille la manière dont les données brutes sont importées, organisées et enregistrées sous forme de fichiers `.RData`.
-***Ceux sont ces fichiers `.RData` qui peuvent être mis à disposition à la demande.***
+  Ceux sont ces fichiers `.RData` qui peuvent être mis à disposition à la demande.
 
 
 ##### Le code
@@ -144,8 +144,8 @@ Trois types de données sont utilisées :
 * **Les données dites "révisées" du PIB**, qui concerne la série du taux de croissance trimestriel du PIB en volume chaîné au prix de l’année précédente 
   publiée par l'Insee pour la première estimation du 1er trimestre 2023, le 28 avril 2023 ;    
 * **Les données dites "non révisées" du PIB**, qui concerne la série constituée de toutes les premières estimations 
-  du taux de croissance du PIB (en volume chaîné au prix de l’année précédente) à chaque trimestre à partir des *millésimes* récupérés à partir du 4e trimestre 2007 (voir le Document de Travail pp.***5 et 32***);
-* **Les données d'enquêtes de conjoncture**, que l'on considère comme n'étant pas révisées (voir le Document de Travail p.***32***).
+  du taux de croissance du PIB (en volume chaîné au prix de l’année précédente) à chaque trimestre à partir des *millésimes* récupérés à partir du 4e trimestre 2007 (voir le Document de Travail pp.5 et 32);
+* **Les données d'enquêtes de conjoncture**, que l'on considère comme n'étant pas révisées (voir le Document de Travail p.32).
 Parmi les données d'enquêtes de conjoncture, seuls les indices synthétiques des enquêtes Insee, Banque de France et
   Standard & Poor's (enquête PMI) sont utilisés. 
   Ces données ont été obtenues via le logiciel de données [DataInsight-Desktop 5.0](https://www.spglobal.com/en/research-insights/)  de Standard & Poor's 
@@ -155,7 +155,7 @@ Parmi les données d'enquêtes de conjoncture, seuls les indices synthétiques d
 **L'analyse de la relation entre les enquêtes de conjoncture et la croissance du PIB** (fichier [`figures_doc_travail.Rmd`](./code/figures_doc_travail.Rmd) et 
 script [`script_pour_doc_travail.R`](./code/script_pour_doc_travail.R)) utilise les données d'enquête ainsi que les données révisées
 du PIB puisque l'on s'intéresse à la "vraie" relation (si tentée qu'elle puisse être observable) entre les enquêtes de conjoncture
-et l'activité économique française, approximée par la mesure du PIB ; d'où l'usage des données révisées (voir le Document de Travail p.***19***).
+et l'activité économique française, approximée par la mesure du PIB ; d'où l'usage des données révisées (voir le Document de Travail p.19).
 L'analyse est réalisée sur la période du 2e trimestre 1998 au 4e trimestre 2019 inclus.
 
 
@@ -174,7 +174,9 @@ puis ils sont évalués sur la période du 4e trimestre 2015 au 4e trimestre 201
   ensuite automatiquement lire ces fichiers (sans avoir par exemple à renseigner quelles sont les dernières données disponibles,
   puisque l'intégralité des dossiers est scannée).
   
-***A TRAITER: mise à disposition des données brutes au format .RData.***
+Les données utilisées pour reproduire les résultats du Document de Travail pourront être mises à disposition sur demande à l'adresse Prev32@dgtresor.gouv.fr. 
+À noter que les données des indices PMI, sous la propriété de S&P Global, devront faire l’objet d’une requête complémentaire à economics@spglobal.com.
+
 
 ## Première utilisation du projet
 
@@ -184,8 +186,8 @@ puis ils sont évalués sur la période du 4e trimestre 2015 au 4e trimestre 201
     - générer l'architecture du projet nécessaire à son bon fonctionnement (via la création de 2 dossiers) ;
     - de télécharger les packages (aux versions appropriées) nécessaires au bon fonctionnement du projet.
     
-3) ***Si vous ne souhaitez pas seulement relire le code, mais également répliquer les résultats et réaliser des tests,
-   les données peuvent être mises à disposition (voir la partie `Données utilisées`)*** ; il faudra ranger les fichiers .RData reçus dans le dossier [`data_doc_travail`](./data_doc_travail) ;
+3) Si vous ne souhaitez pas seulement relire le code, mais également répliquer les résultats et réaliser des tests,
+   les données peuvent être mises à disposition (voir la partie `Données utilisées`) ; il faudra ranger les fichiers .RData reçus dans le dossier [`data_doc_travail`](./data_doc_travail) ;
    
 4) Selon ce que vous souhaitez faire, lancer :
     - le fichier RMarkdown [`figures_doc_travail.Rmd`](./code/figures_doc_travail.Rmd) ;
