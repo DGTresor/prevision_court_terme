@@ -154,7 +154,7 @@ corrplot::corrplot(corr_values[, c("var1_PIB", "var4_PIB")],
                    method = "number", type = "lower", cl.pos = "n")
 
 ############ 1er enseignement :
-# Sur la période du T2 1999 au T4 2019, on voit clairement que comme l'indique la théorie, les climats
+# Sur la période du T2 1998 au T4 2019, on voit clairement que comme l'indique la théorie, les climats
 # des affaires trimestrialisées (i.e. moyenne sur le trimestre) en niveau sont les plus corrélés à la variation trimestrielle du PIB,
 # a contrario des variations trimestrielles des climats trimestrialisées. On notera que compte tenu de la spécificité de la formulation
 # des questions Insee, le climat des affaires du mois m+1 (i.e. 1er mois) du trimestre T+1 est plus corrélé à la variation trimestrielle
@@ -680,7 +680,7 @@ ggplot(data = full_sample_graphs) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et PMI composite",
-       subtitle = "Période : T2 1999 - T4 2019",
+       subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, Markit",
        x = "PMI composite trimestrialisé",
        y = "Variation trimestrielle du PIB"
@@ -713,7 +713,7 @@ ggplot(data = full_sample_graphs) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et climat Insee",
-       subtitle = "Période : T2 1999 - T4 2019",
+       subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee",
        x = "Climat Insee au mois 1 du trimestre T+1",
        y = "Variation trimestrielle du PIB au trimestre T"
@@ -745,7 +745,7 @@ ggplot(data = full_sample_graphs) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Variation trimestrielle du PIB trimestriel français et climat Banque de France",
-       subtitle = "Période : T2 1999 - T4 2019",
+       subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, Banque de France",
        x = "Climat Banque de France trimestrialisé",
        y = "Variation trimestrielle du PIB"
@@ -779,7 +779,7 @@ ggplot(data = full_sample_graphs) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et PMI composite",
-       subtitle = "Période : T2 1999 - T4 2019",
+       subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, Markit",
        x = "PMI composite trimestrialisé",
        y = "Glissement annuel du PIB"
@@ -811,7 +811,7 @@ ggplot(data = full_sample_graphs) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
-       subtitle = "Période : T2 1999 - T4 2019",
+       subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee",
        x = "Climat Insee au mois 1 du trimestre T+1",
        y = "Glissement annuel du PIB au trimestre T"
@@ -827,7 +827,7 @@ ggplot(data = sample_without_outliers_graphs_ga) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
-       subtitle = "Période : T2 1999 - T4 2019 (avec exclusion de la crise 2008-9)",
+       subtitle = "Période : T1 1999 - T4 2019 (avec exclusion de la crise 2008-9)",
        caption = "Source : Insee",
        x = "Climat Insee au mois 1 du trimestre T+1",
        y = "Glissement annuel du PIB au trimestre T"
@@ -843,7 +843,7 @@ ggplot(data = full_sample_graphs) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
-       subtitle = "Période : T2 1999 - T4 2019",
+       subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee",
        x = "Climat Insee trimestrialisé",
        y = "Glissement annuel du PIB"
@@ -859,7 +859,7 @@ ggplot(data = sample_without_outliers_graphs_ga) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Insee",
-       subtitle = "Période : T2 1999 - T4 2019 (avec exclusion de la crise 2008-9)",
+       subtitle = "Période : T1 1999 - T4 2019 (avec exclusion de la crise 2008-9)",
        caption = "Source : Insee",
        x = "Climat Insee trimestrialisé",
        y = "Glissement annuel du PIB"
@@ -875,7 +875,7 @@ ggplot(data = full_sample_graphs) +
   geom_label(aes(label = date, color = date)) +
   geom_smooth(method = lm, color = "black") +
   labs(title = "Glissement annuel du PIB trimestriel français et climat Banque de France",
-       subtitle = "Période : T2 1999 - T4 2019",
+       subtitle = "Période : T1 1999 - T4 2019",
        caption = "Source : Insee, Banque de France",
        x = "Climat Banque de France trimestrialisé",
        y = "Glissement annuel du PIB"

@@ -298,7 +298,7 @@ ggplot(data_graph_evol_PIB %>% filter(dimension == "var1_PIB")) +
   aes(x = quarter, y = value) +
   geom_line(color = "darkblue") +
   labs(title = "Variation trimestrielle du PIB trimestriel français",
-       subtitle = "Période : T1 1999 - T4 2019",
+       subtitle = "Période : T2 1998 - T4 2019",
        caption = "Source : Insee, calculs DG Trésor,
                   Données : RD 2023T1 des comptes nationaux trimestriels") +
   dgtresor_theme() +
@@ -314,7 +314,7 @@ ggplot(data_graph_evol_PIB %>% filter(dimension == "var4_PIB")) +
   aes(x = quarter, y = value) +
   geom_line(color = "darkorange") +
   labs(title = "Glissement annuel du PIB trimestriel français",
-       subtitle = "Période : T1 1999 - T4 2019",
+       subtitle = "Période : T2 1998 - T4 2019",
        caption = "Source : Insee, calculs DG Trésor,
                   Données : RD 2023T1 des comptes nationaux trimestriels") +
   dgtresor_theme() +
