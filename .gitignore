@@ -4,6 +4,7 @@
 .idea/
 output/
 data/
+data_doc_travail/
 *.docx
 *.xlsx
 *.html
